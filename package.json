@@ -1,5 +1,5 @@
 {
-  "name": "temp-vite",
+  "name": "gitscout",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@libsql/client": "^0.17.3",
     "@phosphor-icons/react": "^2.1.10",
     "@tanstack/react-query": "^5.100.14",
     "apexcharts": "^5.13.0",

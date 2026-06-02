@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import Database from 'better-sqlite3';
+import { createClient } from '@libsql/client';
 import axios from 'axios';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -14,42 +14,54 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Initialize SQLite database
-const dbPath = path.join(__dirname, '../gitscout.db');
+// Initialize Turso database client (works with remote and local files)
 const isVercel = !!process.env.VERCEL;
-const db = new Database(dbPath, { readonly: isVercel });
+const dbUrl = process.env.TURSO_DATABASE_URL || `file:${path.join(__dirname, '../gitscout.db')}`;
+const dbToken = process.env.TURSO_AUTH_TOKEN;
 
-// Create table schema
-if (!isVercel) {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS repositories (
-      id INTEGER PRIMARY KEY,
-      owner TEXT NOT NULL,
-      name TEXT NOT NULL,
-      description TEXT,
-      language TEXT,
-      stars INTEGER,
-      starDelta INTEGER,
-      forks INTEGER,
-      topics TEXT,
-      category TEXT,
-      oppType TEXT,
-      avatar TEXT,
-      healthScore INTEGER,
-      activity TEXT,
-      signals TEXT,
-      busFactor INTEGER,
-      forkOpportunity TEXT,
-      forkTags TEXT,
-      opportunityPitch TEXT,
-      opportunityGap TEXT,
-      opportunityTargetAreas TEXT,
-      opportunityROI TEXT,
-      issues TEXT,
-      contributionGuide TEXT,
-      trendData TEXT
-    );
-  `);
+const db = createClient({
+  url: dbUrl,
+  authToken: dbToken,
+});
+
+// Async database schema and seed initializer
+async function initDatabase() {
+  try {
+    console.log('Verifying table schema on database...');
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS repositories (
+        id INTEGER PRIMARY KEY,
+        owner TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        language TEXT,
+        stars INTEGER,
+        starDelta INTEGER,
+        forks INTEGER,
+        topics TEXT,
+        category TEXT,
+        oppType TEXT,
+        avatar TEXT,
+        healthScore INTEGER,
+        activity TEXT,
+        signals TEXT,
+        busFactor INTEGER,
+        forkOpportunity TEXT,
+        forkTags TEXT,
+        opportunityPitch TEXT,
+        opportunityGap TEXT,
+        opportunityTargetAreas TEXT,
+        opportunityROI TEXT,
+        issues TEXT,
+        contributionGuide TEXT,
+        trendData TEXT,
+        created_at TEXT
+      );
+    `);
+    await seedDatabase();
+  } catch (error: any) {
+    console.error('Error during database initialization:', error.message);
+  }
 }
 
 // Mock datasets for seeding (complete from prototype for perfect design fidelity)
@@ -515,101 +527,117 @@ const initialOpportunities = [
 ];
 
 // Helper to seed database if empty
-function seedDatabase() {
-  const count = db.prepare('SELECT COUNT(*) as count FROM repositories').get() as { count: number };
-  if (count.count === 0) {
-    console.log('Seeding GitScout cache database...');
-    const insertStmt = db.prepare(`
-      INSERT INTO repositories (
-        id, owner, name, description, language, stars, starDelta, forks, topics, category,
-        oppType, avatar, healthScore, activity, signals, busFactor, forkOpportunity, forkTags,
-        opportunityPitch, opportunityGap, opportunityTargetAreas, opportunityROI, issues, contributionGuide, trendData
-      ) VALUES (
-        @id, @owner, @name, @description, @language, @stars, @starDelta, @forks, @topics, @category,
-        @oppType, @avatar, @healthScore, @activity, @signals, @busFactor, @forkOpportunity, @forkTags,
-        @opportunityPitch, @opportunityGap, @opportunityTargetAreas, @opportunityROI, @issues, @contributionGuide, @trendData
-      )
-    `);
+async function seedDatabase() {
+  try {
+    const countResult = await db.execute('SELECT COUNT(*) as count FROM repositories');
+    const count = countResult.rows[0]?.count as number ?? 0;
+    
+    if (count === 0) {
+      console.log('Seeding GitScout cache database...');
+      const statements: any[] = [];
 
-    const insertRepo = (repo: any) => {
-      // Generate realistic deterministic trend data for charts to make standard visual line charts render gorgeously!
-      const months = ['Dec 25', 'Jan 26', 'Feb 26', 'Mar 26', 'Apr 26', 'May 26'];
-      const commitMonths = ['Jun 25', 'Jul 25', 'Aug 25', 'Sep 25', 'Oct 25', 'Nov 25', 'Dec 25', 'Jan 26', 'Feb 26', 'Mar 26', 'Apr 26', 'May 26'];
-      
-      const seed = repo.id;
-      const getSeedVal = (i: number, base: number) => {
-        return Math.floor(base + Math.sin(seed + i) * (base * 0.25));
+      const buildInsertRepo = (repo: any) => {
+        // Generate realistic deterministic trend data for charts to make standard visual line charts render gorgeously!
+        const months = ['Dec 25', 'Jan 26', 'Feb 26', 'Mar 26', 'Apr 26', 'May 26'];
+        const commitMonths = ['Jun 25', 'Jul 25', 'Aug 25', 'Sep 25', 'Oct 25', 'Nov 25', 'Dec 25', 'Jan 26', 'Feb 26', 'Mar 26', 'Apr 26', 'May 26'];
+        
+        const seed = repo.id;
+        const getSeedVal = (i: number, base: number) => {
+          return Math.floor(base + Math.sin(seed + i) * (base * 0.25));
+        };
+
+        const starHistory = months.map((_, idx) => {
+          const start = repo.stars - (repo.starDelta || 500);
+          const step = (repo.starDelta || 500) / 5;
+          return Math.floor(start + idx * step + Math.sin(seed + idx) * 100);
+        });
+
+        const commitHistory = commitMonths.map((_, idx) => getSeedVal(idx, repo.healthScore ? repo.healthScore * 0.6 : 35));
+
+        const openIssuesCount = repo.issues ? repo.issues.length : Math.floor(10 + Math.sin(seed) * 5);
+        const closedIssuesCount = Math.floor(openIssuesCount * (repo.healthScore ? repo.healthScore / 60 : 1.2));
+        const totalIssues = openIssuesCount + closedIssuesCount;
+        const issuesRatio = {
+          open: openIssuesCount,
+          closed: closedIssuesCount,
+          total: totalIssues,
+          rate: Math.round((closedIssuesCount / totalIssues) * 100)
+        };
+
+        const trendData = {
+          months,
+          starHistory,
+          commitMonths,
+          commitHistory,
+          issuesRatio
+        };
+
+        // Deterministic creation timestamp distributed over the last 240 days
+        const getCreatedAt = (id: number) => {
+          const daysAgo = (id * 17) % 240;
+          const date = new Date();
+          date.setDate(date.getDate() - daysAgo);
+          return date.toISOString();
+        };
+        const created_at = repo.created_at || getCreatedAt(repo.id);
+
+        statements.push({
+          sql: `
+            INSERT INTO repositories (
+              id, owner, name, description, language, stars, starDelta, forks, topics, category,
+              oppType, avatar, healthScore, activity, signals, busFactor, forkOpportunity, forkTags,
+              opportunityPitch, opportunityGap, opportunityTargetAreas, opportunityROI, issues, contributionGuide, trendData, created_at
+            ) VALUES (
+              :id, :owner, :name, :description, :language, :stars, :starDelta, :forks, :topics, :category,
+              :oppType, :avatar, :healthScore, :activity, :signals, :busFactor, :forkOpportunity, :forkTags,
+              :opportunityPitch, :opportunityGap, :opportunityTargetAreas, :opportunityROI, :issues, :contributionGuide, :trendData, :created_at
+            )
+          `,
+          args: {
+            id: repo.id,
+            owner: repo.owner,
+            name: repo.name,
+            description: repo.description,
+            language: repo.language,
+            stars: repo.stars,
+            starDelta: repo.starDelta || 100,
+            forks: repo.forks,
+            topics: JSON.stringify(repo.topics || []),
+            category: repo.category || 'all',
+            oppType: repo.oppType || null,
+            avatar: repo.avatar,
+            healthScore: repo.healthScore || null,
+            activity: JSON.stringify(repo.activity || []),
+            signals: JSON.stringify(repo.signals || []),
+            busFactor: repo.busFactor || null,
+            forkOpportunity: repo.forkOpportunity || null,
+            forkTags: JSON.stringify(repo.forkTags || []),
+            opportunityPitch: repo.opportunityPitch || null,
+            opportunityGap: repo.opportunityGap || null,
+            opportunityTargetAreas: repo.opportunityTargetAreas || null,
+            opportunityROI: repo.opportunityROI || null,
+            issues: JSON.stringify(repo.issues || []),
+            contributionGuide: JSON.stringify(repo.contributionGuide || []),
+            trendData: JSON.stringify(trendData),
+            created_at
+          }
+        });
       };
 
-      const starHistory = months.map((_, idx) => {
-        const start = repo.stars - (repo.starDelta || 500);
-        const step = (repo.starDelta || 500) / 5;
-        return Math.floor(start + idx * step + Math.sin(seed + idx) * 100);
-      });
+      initialTrending.forEach(buildInsertRepo);
+      initialOpportunities.forEach(buildInsertRepo);
 
-      const commitHistory = commitMonths.map((_, idx) => getSeedVal(idx, repo.healthScore ? repo.healthScore * 0.6 : 35));
-
-      const openIssuesCount = repo.issues ? repo.issues.length : Math.floor(10 + Math.sin(seed) * 5);
-      const closedIssuesCount = Math.floor(openIssuesCount * (repo.healthScore ? repo.healthScore / 60 : 1.2));
-      const totalIssues = openIssuesCount + closedIssuesCount;
-      const issuesRatio = {
-        open: openIssuesCount,
-        closed: closedIssuesCount,
-        total: totalIssues,
-        rate: Math.round((closedIssuesCount / totalIssues) * 100)
-      };
-
-      const trendData = {
-        months,
-        starHistory,
-        commitMonths,
-        commitHistory,
-        issuesRatio
-      };
-
-      insertStmt.run({
-        id: repo.id,
-        owner: repo.owner,
-        name: repo.name,
-        description: repo.description,
-        language: repo.language,
-        stars: repo.stars,
-        starDelta: repo.starDelta || 100,
-        forks: repo.forks,
-        topics: JSON.stringify(repo.topics || []),
-        category: repo.category || 'all',
-        oppType: repo.oppType || null,
-        avatar: repo.avatar,
-        healthScore: repo.healthScore || null,
-        activity: JSON.stringify(repo.activity || []),
-        signals: JSON.stringify(repo.signals || []),
-        busFactor: repo.busFactor || null,
-        forkOpportunity: repo.forkOpportunity || null,
-        forkTags: JSON.stringify(repo.forkTags || []),
-        opportunityPitch: repo.opportunityPitch || null,
-        opportunityGap: repo.opportunityGap || null,
-        opportunityTargetAreas: repo.opportunityTargetAreas || null,
-        opportunityROI: repo.opportunityROI || null,
-        issues: JSON.stringify(repo.issues || []),
-        contributionGuide: JSON.stringify(repo.contributionGuide || []),
-        trendData: JSON.stringify(trendData)
-      });
-    };
-
-    initialTrending.forEach(insertRepo);
-    initialOpportunities.forEach(insertRepo);
-    console.log('Seeding completed successfully!');
+      return db.batch(statements, 'write');
+    }
+  } catch (error: any) {
+    console.error('Error during database seeding:', error.message);
   }
-}
-
-if (!isVercel) {
-  seedDatabase();
 }
 
 // API ENDPOINTS
 
 // 1. Get Trending Repositories
-app.get('/api/trending', (req, res) => {
+app.get('/api/trending', async (req, res) => {
   const { category, search, language } = req.query;
   let query = 'SELECT * FROM repositories WHERE oppType IS NULL';
   const params: any[] = [];
@@ -631,16 +659,17 @@ app.get('/api/trending', (req, res) => {
   query += ' ORDER BY stars DESC';
 
   try {
-    const repos = db.prepare(query).all(...params) as any[];
-    const parsedRepos = repos.map(repo => ({
+    const result = await db.execute({ sql: query, args: params });
+    const repos = result.rows;
+    const parsedRepos = repos.map((repo: any) => ({
       ...repo,
-      topics: JSON.parse(repo.topics || '[]'),
-      activity: JSON.parse(repo.activity || '[]'),
-      signals: JSON.parse(repo.signals || '[]'),
-      forkTags: JSON.parse(repo.forkTags || '[]'),
-      issues: JSON.parse(repo.issues || '[]'),
-      contributionGuide: JSON.parse(repo.contributionGuide || '[]'),
-      trendData: JSON.parse(repo.trendData || 'null')
+      topics: JSON.parse(repo.topics as string || '[]'),
+      activity: JSON.parse(repo.activity as string || '[]'),
+      signals: JSON.parse(repo.signals as string || '[]'),
+      forkTags: JSON.parse(repo.forkTags as string || '[]'),
+      issues: JSON.parse(repo.issues as string || '[]'),
+      contributionGuide: JSON.parse(repo.contributionGuide as string || '[]'),
+      trendData: JSON.parse(repo.trendData as string || 'null')
     }));
     res.json(parsedRepos);
   } catch (error: any) {
@@ -649,7 +678,7 @@ app.get('/api/trending', (req, res) => {
 });
 
 // 2. Get Opportunity Repositories
-app.get('/api/opportunities', (req, res) => {
+app.get('/api/opportunities', async (req, res) => {
   const { oppType, category, search, language } = req.query;
   let query = 'SELECT * FROM repositories WHERE oppType IS NOT NULL';
   const params: any[] = [];
@@ -675,16 +704,17 @@ app.get('/api/opportunities', (req, res) => {
   query += ' ORDER BY healthScore DESC, stars DESC';
 
   try {
-    const repos = db.prepare(query).all(...params) as any[];
-    const parsedRepos = repos.map(repo => ({
+    const result = await db.execute({ sql: query, args: params });
+    const repos = result.rows;
+    const parsedRepos = repos.map((repo: any) => ({
       ...repo,
-      topics: JSON.parse(repo.topics || '[]'),
-      activity: JSON.parse(repo.activity || '[]'),
-      signals: JSON.parse(repo.signals || '[]'),
-      forkTags: JSON.parse(repo.forkTags || '[]'),
-      issues: JSON.parse(repo.issues || '[]'),
-      contributionGuide: JSON.parse(repo.contributionGuide || '[]'),
-      trendData: JSON.parse(repo.trendData || 'null')
+      topics: JSON.parse(repo.topics as string || '[]'),
+      activity: JSON.parse(repo.activity as string || '[]'),
+      signals: JSON.parse(repo.signals as string || '[]'),
+      forkTags: JSON.parse(repo.forkTags as string || '[]'),
+      issues: JSON.parse(repo.issues as string || '[]'),
+      contributionGuide: JSON.parse(repo.contributionGuide as string || '[]'),
+      trendData: JSON.parse(repo.trendData as string || 'null')
     }));
     res.json(parsedRepos);
   } catch (error: any) {
@@ -693,23 +723,27 @@ app.get('/api/opportunities', (req, res) => {
 });
 
 // 3. Get Specific Repository Deep Details
-app.get('/api/opportunities/:owner/:name', (req, res) => {
+app.get('/api/opportunities/:owner/:name', async (req, res) => {
   const { owner, name } = req.params;
   try {
-    const repo = db.prepare('SELECT * FROM repositories WHERE LOWER(owner) = ? AND LOWER(name) = ?').get(owner.toLowerCase(), name.toLowerCase()) as any;
+    const result = await db.execute({
+      sql: 'SELECT * FROM repositories WHERE LOWER(owner) = ? AND LOWER(name) = ?',
+      args: [owner.toLowerCase(), name.toLowerCase()]
+    });
+    const repo = result.rows[0] as any;
     if (!repo) {
-      return res.status(404).json({ error: 'Repository not found in local database cache.' });
+      return res.status(404).json({ error: 'Repository not found in database.' });
     }
 
     const parsedRepo = {
       ...repo,
-      topics: JSON.parse(repo.topics || '[]'),
-      activity: JSON.parse(repo.activity || '[]'),
-      signals: JSON.parse(repo.signals || '[]'),
-      forkTags: JSON.parse(repo.forkTags || '[]'),
-      issues: JSON.parse(repo.issues || '[]'),
-      contributionGuide: JSON.parse(repo.contributionGuide || '[]'),
-      trendData: JSON.parse(repo.trendData || 'null')
+      topics: JSON.parse(repo.topics as string || '[]'),
+      activity: JSON.parse(repo.activity as string || '[]'),
+      signals: JSON.parse(repo.signals as string || '[]'),
+      forkTags: JSON.parse(repo.forkTags as string || '[]'),
+      issues: JSON.parse(repo.issues as string || '[]'),
+      contributionGuide: JSON.parse(repo.contributionGuide as string || '[]'),
+      trendData: JSON.parse(repo.trendData as string || 'null')
     };
     res.json(parsedRepo);
   } catch (error: any) {
@@ -718,22 +752,17 @@ app.get('/api/opportunities/:owner/:name', (req, res) => {
 });
 
 // 4. Trigger Scan / Sync with GitHub REST API
-// If existing, update; if new, insert. This fully satisfies the requirement.
 app.post('/api/scan', async (req, res) => {
   try {
-    console.log('Initiating active GitScout GitHub API trinh sát...');
+    console.log('Initiating active GitScout GitHub API scout...');
     
-    // We fetch repos containing "agent" or "ai" or popular developer topics from GitHub search API
-    // This provides organic real-time repository intelligence!
     const searchQueries = [
       'q=topic:ai-agent+stars:>200&sort=updated&order=desc',
       'q=topic:llm+stars:>300&sort=updated&order=desc',
       'q=topic:langchain+stars:>100&sort=updated&order=desc'
     ];
     
-    // Pick one of the search queries randomly to diversify findings
     const randomQuery = searchQueries[Math.floor(Math.random() * searchQueries.length)];
-    
     const githubUrl = `https://api.github.com/search/repositories?${randomQuery}&per_page=15`;
     
     const headers: any = {};
@@ -746,26 +775,6 @@ app.post('/api/scan', async (req, res) => {
     
     const updatedRepos: any[] = [];
     
-    // Better SQLite statements for checking, updating, and inserting
-    const checkRepo = db.prepare('SELECT * FROM repositories WHERE owner = ? AND name = ?');
-    const updateRepo = db.prepare(`
-      UPDATE repositories 
-      SET description = ?, stars = ?, forks = ?, topics = ?, avatar = ?
-      WHERE id = ?
-    `);
-    
-    const insertRepo = db.prepare(`
-      INSERT INTO repositories (
-        id, owner, name, description, language, stars, starDelta, forks, topics, category,
-        oppType, avatar, healthScore, activity, signals, busFactor, forkOpportunity, forkTags,
-        opportunityPitch, opportunityGap, opportunityTargetAreas, opportunityROI, issues, contributionGuide, trendData
-      ) VALUES (
-        @id, @owner, @name, @description, @language, @stars, @starDelta, @forks, @topics, @category,
-        @oppType, @avatar, @healthScore, @activity, @signals, @busFactor, @forkOpportunity, @forkTags,
-        @opportunityPitch, @opportunityGap, @opportunityTargetAreas, @opportunityROI, @issues, @contributionGuide, @trendData
-      )
-    `);
-    
     for (const item of items) {
       const id = item.id;
       const owner = item.owner.login;
@@ -777,11 +786,18 @@ app.post('/api/scan', async (req, res) => {
       const topics = item.topics || [];
       const avatar = item.owner.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${name}`;
       
-      const existing = checkRepo.get(owner, name) as any;
+      const existingResult = await db.execute({
+        sql: 'SELECT * FROM repositories WHERE owner = ? AND name = ?',
+        args: [owner, name]
+      });
+      const existing = existingResult.rows[0] as any;
       
       if (existing) {
-        // If it exists, update it! (as requested: update lại chứ không thêm mới)
-        updateRepo.run(description, stars, forks, JSON.stringify(topics), avatar, existing.id);
+        // Update existing repository
+        await db.execute({
+          sql: 'UPDATE repositories SET description = ?, stars = ?, forks = ?, topics = ?, avatar = ? WHERE id = ?',
+          args: [description, stars, forks, JSON.stringify(topics), avatar, existing.id]
+        });
         console.log(`Updated existing repository: ${owner}/${name}`);
         updatedRepos.push({
           ...existing,
@@ -792,8 +808,7 @@ app.post('/api/scan', async (req, res) => {
           avatar
         });
       } else {
-        // If new, insert into local database!
-        // Synthesize high-quality opportunity evaluation vectors deterministically
+        // Synthesize high-quality opportunity evaluation vectors
         const seed = id;
         const healthScore = Math.floor(65 + (Math.sin(seed) * 25));
         const oppTypes: ('rising' | 'bounty' | 'abandoned' | 'firstpr' | 'design')[] = ['rising', 'bounty', 'firstpr', 'design'];
@@ -854,7 +869,7 @@ app.post('/api/scan', async (req, res) => {
           starDelta: Math.floor(stars * 0.05),
           forks,
           topics: JSON.stringify(topics),
-          category: 'ai', // All fresh scans are tagged under high-priority AI category
+          category: 'ai',
           oppType,
           avatar,
           healthScore,
@@ -872,7 +887,47 @@ app.post('/api/scan', async (req, res) => {
           trendData: JSON.stringify(trendData)
         };
         
-        insertRepo.run(newRepo);
+        await db.execute({
+          sql: `
+            INSERT INTO repositories (
+              id, owner, name, description, language, stars, starDelta, forks, topics, category,
+              oppType, avatar, healthScore, activity, signals, busFactor, forkOpportunity, forkTags,
+              opportunityPitch, opportunityGap, opportunityTargetAreas, opportunityROI, issues, contributionGuide, trendData
+            ) VALUES (
+              :id, :owner, :name, :description, :language, :stars, :starDelta, :forks, :topics, :category,
+              :oppType, :avatar, :healthScore, :activity, :signals, :busFactor, :forkOpportunity, :forkTags,
+              :opportunityPitch, :opportunityGap, :opportunityTargetAreas, :opportunityROI, :issues, :contributionGuide, :trendData
+            )
+          `,
+          args: {
+            id: newRepo.id,
+            owner: newRepo.owner,
+            name: newRepo.name,
+            description: newRepo.description,
+            language: newRepo.language,
+            stars: newRepo.stars,
+            starDelta: newRepo.starDelta,
+            forks: newRepo.forks,
+            topics: newRepo.topics,
+            category: newRepo.category,
+            oppType: newRepo.oppType,
+            avatar: newRepo.avatar,
+            healthScore: newRepo.healthScore,
+            activity: newRepo.activity,
+            signals: newRepo.signals,
+            busFactor: newRepo.busFactor,
+            forkOpportunity: newRepo.forkOpportunity,
+            forkTags: newRepo.forkTags,
+            opportunityPitch: newRepo.opportunityPitch,
+            opportunityGap: newRepo.opportunityGap,
+            opportunityTargetAreas: newRepo.opportunityTargetAreas,
+            opportunityROI: newRepo.opportunityROI,
+            issues: newRepo.issues,
+            contributionGuide: newRepo.contributionGuide,
+            trendData: newRepo.trendData
+          }
+        });
+        
         console.log(`Inserted new scanned repository: ${owner}/${name}`);
         updatedRepos.push({
           ...newRepo,
@@ -890,18 +945,22 @@ app.post('/api/scan', async (req, res) => {
     res.json({ message: 'Active scan completed!', scannedCount: items.length, repositories: updatedRepos });
   } catch (error: any) {
     console.error('Scan Error:', error.message);
-    // Return gracefully with a fallback status update if rate limit or network fails
     res.status(500).json({ error: 'GitHub API limit or Timeout. Please try again shortly or review logs.' });
   }
 });
 
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
-  app.listen(PORT, () => {
-    console.log(`====================================================`);
-    console.log(` GitScout Opportunity Scouter running on port ${PORT}`);
-    console.log(` Database cached at: ${dbPath}`);
-    console.log(`====================================================`);
-  });
-}
+// Initialize database schema and start Express listener
+initDatabase().then(() => {
+  if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+    app.listen(PORT, () => {
+      console.log(`====================================================`);
+      console.log(` GitScout Opportunity Scouter running on port ${PORT}`);
+      console.log(` Database URL: ${dbUrl}`);
+      console.log(`====================================================`);
+    });
+  }
+}).catch(err => {
+  console.error('Database initialization crashed on startup:', err);
+});
 
 export default app;
