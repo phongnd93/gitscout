@@ -22,6 +22,16 @@ const db = createClient({
   authToken: dbToken,
 });
 
+// Middleware to ensure database is initialized before handling any request
+const dbReady = initDatabase().catch(err => {
+  console.error('Database initialization crashed on startup:', err);
+});
+
+app.use(async (_req, _res, next) => {
+  await dbReady;
+  next();
+});
+
 // Async database schema and seed initializer
 async function initDatabase() {
   try {
@@ -945,11 +955,6 @@ app.post('/api/scan', async (req, res) => {
     console.error('Scan Error:', error.message);
     res.status(500).json({ error: 'GitHub API limit or Timeout. Please try again shortly or review logs.' });
   }
-});
-
-// Initialize database schema (runs on cold start for Vercel serverless)
-initDatabase().catch(err => {
-  console.error('Database initialization crashed on startup:', err);
 });
 
 export default app;
