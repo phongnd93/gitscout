@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useFilterStore } from '../../stores/filters';
-import type { Repository } from '../../types/github';
+import type { Repository, SpotlightStyle } from '../../types/github';
 import axios from 'axios';
 
 export const RepoAnalysis: React.FC = () => {
@@ -44,7 +44,9 @@ export const RepoAnalysis: React.FC = () => {
         const res = await axios.get(`/api/opportunities/${targetOwner}/${targetName}`);
         setRepo(res.data);
         setSelectedRepo(res.data);
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.warn('Failed to fetch repo detail:', message);
         setError('Repository details not found in cache.');
         if (selectedRepo) {
           setRepo(selectedRepo);
@@ -191,8 +193,8 @@ export const RepoAnalysis: React.FC = () => {
     }
   };
 
-  const getSpotlightStyles = (type?: string) => {
-    const defaultStyle = {
+  const getSpotlightStyles = (type?: string): SpotlightStyle => {
+    const defaultStyle: SpotlightStyle = {
       border: 'border-green-500/30',
       bg: 'bg-green-500/5',
       iconBg: 'bg-green-500/20',

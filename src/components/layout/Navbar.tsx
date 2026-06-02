@@ -20,7 +20,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onScanComplete }) => {
       setScanMessage(`Found ${res.data.scannedCount} opportunities!`);
       onScanComplete();
       setTimeout(() => setScanMessage(null), 3000);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = axios.isAxiosError(err) ? err.message : err instanceof Error ? err.message : String(err);
+      console.warn('Scan failed:', message);
       setScanMessage('Failed to connect to scanner.');
       setTimeout(() => setScanMessage(null), 3000);
     } finally {

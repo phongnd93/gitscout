@@ -1,9 +1,19 @@
 export type OpportunityType = 'rising' | 'bounty' | 'abandoned' | 'firstpr' | 'design';
 
+export type IssueDifficulty = 'easy' | 'medium' | 'hard';
+
+export type SignalType = 'positive' | 'warning' | 'negative' | 'neutral';
+
+export type PageType = 'trending' | 'opportunities' | 'detail';
+
+export type TimeRange = 'today' | 'week' | 'month';
+
+export type Theme = 'dark' | 'light';
+
 export interface Issue {
   num: number;
   title: string;
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: IssueDifficulty;
   time: string;
   labels: string[];
   url: string;
@@ -20,7 +30,7 @@ export interface OpportunityBreakdown {
   emoji: string;
   title: string;
   description: string;
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: IssueDifficulty | 'varies';
   time: string;
 }
 
@@ -32,7 +42,7 @@ export interface QuickAction {
 }
 
 export interface SignalItem {
-  type: 'positive' | 'warning' | 'negative' | 'neutral';
+  type: SignalType;
   icon: string;
   text: string;
 }
@@ -78,4 +88,72 @@ export interface Repository {
   issues?: Issue[];
   contributionGuide?: ContributionStep[];
   trendData?: TrendData;
+}
+
+/** Raw row shape from SQLite/turso before JSON.parse — all values are primitive. */
+export interface DbRowRaw {
+  id: number;
+  owner: string;
+  name: string;
+  description: string | null;
+  language: string | null;
+  stars: number | null;
+  starDelta: number | null;
+  forks: number | null;
+  topics: string | null;
+  category: string | null;
+  oppType: string | null;
+  avatar: string | null;
+  healthScore: number | null;
+  activity: string | null;
+  signals: string | null;
+  busFactor: number | null;
+  forkOpportunity: string | null;
+  forkTags: string | null;
+  opportunityPitch: string | null;
+  opportunityGap: string | null;
+  opportunityTargetAreas: string | null;
+  opportunityROI: string | null;
+  issues: string | null;
+  contributionGuide: string | null;
+  trendData: string | null;
+  created_at: string | null;
+}
+
+/** Shape for libsql batch statements. */
+export interface DbStatement {
+  sql: string;
+  args: Record<string, unknown>;
+}
+
+/** Query parameters for API filtering. */
+export interface QueryParams {
+  category?: string;
+  oppType?: string;
+  language?: string;
+  search?: string;
+}
+
+/** Generic error with optional Axios shape. */
+export interface AxiosErrorShape {
+  message: string;
+  response?: {
+    status: number;
+    data: unknown;
+  };
+}
+
+/** GitHub API auth headers. */
+export interface GitHubHeaders {
+  Authorization?: string;
+}
+
+/** Spotlight style object for opportunity badges. */
+export interface SpotlightStyle {
+  border: string;
+  bg: string;
+  iconBg: string;
+  iconColor: string;
+  label: string;
+  iconClass: string;
 }

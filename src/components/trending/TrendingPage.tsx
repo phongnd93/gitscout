@@ -30,14 +30,16 @@ export const TrendingPage: React.FC<TrendingPageProps> = ({ scanToken }) => {
       setLoading(true);
       setError(null);
       try {
-        const params: any = {};
+        const params: Record<string, string> = {};
         if (currentCategory !== 'all') params.category = currentCategory;
         if (selectedLanguage !== 'all') params.language = selectedLanguage;
         if (searchQuery) params.search = searchQuery;
 
         const res = await axios.get('/api/trending', { params });
-        setRepos(res.data);
-      } catch (err: any) {
+        setRepos(res.data as Repository[]);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.warn('Failed to fetch trending:', message);
         setError('Failed to sync repository intelligence feed.');
       } finally {
         setLoading(false);

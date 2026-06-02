@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import type { Repository } from '../../types/github';
 import { useFilterStore } from '../../stores/filters';
 import ApexCharts from 'apexcharts';
+import type { ApexOptions } from 'apexcharts';
 
 interface CategoryTrendChartProps {
   repos: Repository[];
@@ -159,10 +160,10 @@ export const CategoryTrendChart: React.FC<CategoryTrendChartProps> = ({ repos })
 
     if (chartInstance.current) {
       // Smooth update of series & options
-      chartInstance.current.updateOptions(options as any);
+      chartInstance.current.updateOptions(options as ApexOptions);
     } else {
       // Instantiation
-      chartInstance.current = new ApexCharts(chartRef.current, options as any);
+      chartInstance.current = new ApexCharts(chartRef.current, options as ApexOptions);
       chartInstance.current.render();
     }
 
