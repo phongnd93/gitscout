@@ -1,0 +1,325 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist+Sans:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   GitScout Custom Styles — mirrors index.html.backup <style>
+   ============================================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Geist Sans', sans-serif;
+  min-height: 100dvh;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  background-color: #fafafa;
+  color: #1a1a2e;
+}
+
+.dark body {
+  background-color: #06060b;
+  color: #e0e0e8;
+}
+
+/* React root — must stretch full width for mx-auto centering */
+#root {
+  width: 100%;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Card hover effect & Double-border styling */
+.repo-card {
+  transition: border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.01), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.dark .repo-card {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.repo-card:hover {
+  border-color: #6366f1;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(99, 102, 241, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.dark .repo-card:hover {
+  box-shadow: 0 12px 32px rgba(99, 102, 241, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Skeleton loading animation */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #d0d0d8 25%, #e0e0e8 50%, #d0d0d8 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+.dark .skeleton {
+  background: linear-gradient(90deg, #1a1a2e 25%, #252540 50%, #1a1a2e 75%);
+  background-size: 200% 100%;
+}
+
+/* Modal backdrop */
+.modal-backdrop {
+  background-color: rgba(250, 250, 250, 0.85);
+}
+
+.dark .modal-backdrop {
+  background-color: rgba(6, 6, 11, 0.85);
+}
+
+/* Sparkline bars */
+.sparkline-bar {
+  transition: height 0.3s ease;
+}
+
+/* Signal item borders */
+.signal-positive {
+  border-left: 3px solid #22c55e;
+}
+
+.signal-warning {
+  border-left: 3px solid #f59e0b;
+}
+
+.signal-negative {
+  border-left: 3px solid #ef4444;
+}
+
+.signal-neutral {
+  border-left: 3px solid #71717a;
+}
+
+/* Tab underline animation */
+.tab-underline {
+  transition: width 0.2s ease;
+}
+
+/* Category pills */
+.category-pill {
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.category-pill:hover {
+  background-color: #6366f1;
+  color: white;
+}
+
+.category-pill.active {
+  background-color: #6366f1;
+  color: white;
+}
+
+/* Opportunity type cards & Interactive active tactile physics */
+.opp-type-card {
+  transition: border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.opp-type-card:hover {
+  border-color: #6366f1;
+  transform: translateY(-2px);
+}
+
+.opp-type-card.selected {
+  border-color: #6366f1;
+  background-color: rgba(99, 102, 241, 0.08);
+}
+
+.dark .opp-type-card.selected {
+  background-color: rgba(99, 102, 241, 0.1);
+}
+
+/* Global active scaling for interactive elements */
+button:active, .opp-type-card:active, .category-pill:active, .time-btn:active, select:active, input:active, a:active {
+  transform: scale(0.98) !important;
+}
+
+button, .opp-type-card, .category-pill, .time-btn, select, input, a {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f0f0f5;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d0d0d8;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #b0b0b8;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #0c0c14;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #1a1a2e;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #252540;
+}
+
+/* Select dropdown dark mode */
+.dark select option {
+  background-color: #0c0c14;
+  color: #e0e0e8;
+}
+
+/* Input placeholder */
+.placeholder-zinc-500::placeholder {
+  color: #71717a;
+}
+
+.dark .placeholder-zinc-500::placeholder {
+  color: #52525b;
+}
+
+/* Line clamp utility */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Badge styles */
+.badge {
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-weight: 500;
+}
+
+/* Theme toggle button */
+.theme-toggle {
+  transition: transform 0.2s ease;
+}
+
+.theme-toggle:hover {
+  transform: scale(1.1);
+}
+
+/* Input focus ring */
+input:focus, select:focus {
+  outline: none;
+  border-color: #6366f1;
+}
+
+/* Detail page hero gradient */
+.opp-hero {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(168, 85, 247, 0.08) 50%, rgba(59, 130, 246, 0.06) 100%);
+}
+
+.dark .opp-hero {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.1) 50%, rgba(59, 130, 246, 0.08) 100%);
+}
+
+/* Issue card hover */
+.issue-card {
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.issue-card:hover {
+  border-color: #6366f1;
+  transform: translateY(-1px);
+}
+
+/* Step connector line */
+.step-connector {
+  position: relative;
+}
+
+.step-connector::after {
+  content: '';
+  position: absolute;
+  left: 18px;
+  top: 40px;
+  bottom: -8px;
+  width: 2px;
+  background: #d0d0d8;
+}
+
+.dark .step-connector::after {
+  background: #1a1a2e;
+}
+
+.step-connector:last-child::after {
+  display: none;
+}
+
+/* Back button */
+.back-btn {
+  transition: transform 0.15s ease;
+}
+
+.back-btn:hover {
+  transform: translateX(-3px);
+}
+
+/* Difficulty badges */
+.diff-easy {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.diff-medium {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.diff-hard {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+/* Pulse animation for urgent items */
+@keyframes pulse-border {
+  0%, 100% { border-color: rgba(239, 68, 68, 0.3); }
+  50% { border-color: rgba(239, 68, 68, 0.8); }
+}
+
+.pulse-urgent {
+  animation: pulse-border 2s infinite;
+}
+
+/* Custom fade-in animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInRight {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.animate-fade-in-right {
+  animation: fadeInRight 0.25s ease forwards;
+}

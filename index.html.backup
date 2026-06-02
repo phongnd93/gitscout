@@ -1,0 +1,2912 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitScout — Open-Source Opportunity Scout</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Geist Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Sans:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web@2.0.3"></script>
+
+  <!-- ApexCharts CDN for stunning dark-tech charts -->
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            dark: {
+              bg: '#06060b',
+              surface: '#0c0c14',
+              border: '#1a1a2e',
+              text: '#e0e0e8'
+            },
+            light: {
+              bg: '#fafafa',
+              surface: '#f0f0f5',
+              border: '#d0d0d8',
+              text: '#1a1a2e'
+            },
+            accent: '#6366f1'
+          },
+          fontFamily: {
+            sans: ['Geist Sans', 'sans-serif'],
+            mono: ['Geist Mono', 'monospace']
+          },
+          borderRadius: {
+            'card': '6px',
+            'small': '4px',
+            'pill': '2px'
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Geist Sans', sans-serif;
+      min-height: 100dvh;
+      transition: background-color 0.2s ease, color 0.2s ease;
+      background-color: #fafafa;
+      color: #1a1a2e;
+    }
+
+    .dark body {
+      background-color: #06060b;
+      color: #e0e0e8;
+    }
+
+    /* Card hover effect & Double-border styling */
+    .repo-card {
+      transition: border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.01), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    }
+
+    .dark .repo-card {
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+    }
+
+    .repo-card:hover {
+      border-color: #6366f1;
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px rgba(99, 102, 241, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    }
+
+    .dark .repo-card:hover {
+      box-shadow: 0 12px 32px rgba(99, 102, 241, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    /* Skeleton loading animation */
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    .skeleton {
+      background: linear-gradient(90deg, #d0d0d8 25%, #e0e0e8 50%, #d0d0d8 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+
+    .dark .skeleton {
+      background: linear-gradient(90deg, #1a1a2e 25%, #252540 50%, #1a1a2e 75%);
+      background-size: 200% 100%;
+    }
+
+    /* Modal backdrop */
+    .modal-backdrop {
+      background-color: rgba(250, 250, 250, 0.85);
+    }
+
+    .dark .modal-backdrop {
+      background-color: rgba(6, 6, 11, 0.85);
+    }
+
+    /* Sparkline bars */
+    .sparkline-bar {
+      transition: height 0.3s ease;
+    }
+
+    /* Signal item borders */
+    .signal-positive {
+      border-left: 3px solid #22c55e;
+    }
+
+    .signal-warning {
+      border-left: 3px solid #f59e0b;
+    }
+
+    .signal-negative {
+      border-left: 3px solid #ef4444;
+    }
+
+    .signal-neutral {
+      border-left: 3px solid #71717a;
+    }
+
+    /* Tab underline animation */
+    .tab-underline {
+      transition: width 0.2s ease;
+    }
+
+    /* Category pills */
+    .category-pill {
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+
+    .category-pill:hover {
+      background-color: #6366f1;
+      color: white;
+    }
+
+    .category-pill.active {
+      background-color: #6366f1;
+      color: white;
+    }
+
+    /* Opportunity type cards & Interactive active tactile physics */
+    .opp-type-card {
+      transition: border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+ 
+    .opp-type-card:hover {
+      border-color: #6366f1;
+      transform: translateY(-2px);
+    }
+ 
+    .opp-type-card.selected {
+      border-color: #6366f1;
+      background-color: rgba(99, 102, 241, 0.08);
+    }
+ 
+    .dark .opp-type-card.selected {
+      background-color: rgba(99, 102, 241, 0.1);
+    }
+
+    /* Global active scaling for interactive elements */
+    button:active, .opp-type-card:active, .category-pill:active, .time-btn:active, select:active, input:active, a:active {
+      transform: scale(0.98) !important;
+    }
+    
+    button, .opp-type-card, .category-pill, .time-btn, select, input, a {
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f0f0f5;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #d0d0d8;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #b0b0b8;
+    }
+
+    .dark ::-webkit-scrollbar-track {
+      background: #0c0c14;
+    }
+
+    .dark ::-webkit-scrollbar-thumb {
+      background: #1a1a2e;
+    }
+
+    .dark ::-webkit-scrollbar-thumb:hover {
+      background: #252540;
+    }
+
+    /* Select dropdown dark mode */
+    .dark select option {
+      background-color: #0c0c14;
+      color: #e0e0e8;
+    }
+
+    /* Input placeholder */
+    .placeholder-zinc-500::placeholder {
+      color: #71717a;
+    }
+
+    .dark .placeholder-zinc-500::placeholder {
+      color: #52525b;
+    }
+
+    /* Line clamp utility */
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Badge styles */
+    .badge {
+      font-size: 0.65rem;
+      padding: 2px 6px;
+      border-radius: 2px;
+      font-weight: 500;
+    }
+
+    /* Theme toggle button */
+    .theme-toggle {
+      transition: transform 0.2s ease;
+    }
+
+    .theme-toggle:hover {
+      transform: scale(1.1);
+    }
+
+    /* Input focus ring */
+    input:focus, select:focus {
+      outline: none;
+      border-color: #6366f1;
+    }
+
+    /* Detail page hero gradient */
+    .opp-hero {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(168, 85, 247, 0.08) 50%, rgba(59, 130, 246, 0.06) 100%);
+    }
+
+    .dark .opp-hero {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.1) 50%, rgba(59, 130, 246, 0.08) 100%);
+    }
+
+    /* Issue card hover */
+    .issue-card {
+      transition: border-color 0.15s ease, transform 0.15s ease;
+    }
+
+    .issue-card:hover {
+      border-color: #6366f1;
+      transform: translateY(-1px);
+    }
+
+    /* Step connector line */
+    .step-connector {
+      position: relative;
+    }
+
+    .step-connector::after {
+      content: '';
+      position: absolute;
+      left: 18px;
+      top: 40px;
+      bottom: -8px;
+      width: 2px;
+      background: #d0d0d8;
+    }
+
+    .dark .step-connector::after {
+      background: #1a1a2e;
+    }
+
+    .step-connector:last-child::after {
+      display: none;
+    }
+
+    /* Back button */
+    .back-btn {
+      transition: transform 0.15s ease;
+    }
+
+    .back-btn:hover {
+      transform: translateX(-3px);
+    }
+
+    /* Difficulty badges */
+    .diff-easy {
+      background-color: rgba(34, 197, 94, 0.15);
+      color: #22c55e;
+    }
+
+    .diff-medium {
+      background-color: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+    }
+
+    .diff-hard {
+      background-color: rgba(239, 68, 68, 0.15);
+      color: #ef4444;
+    }
+
+    /* Pulse animation for urgent items */
+    @keyframes pulse-border {
+      0%, 100% { border-color: rgba(239, 68, 68, 0.3); }
+      50% { border-color: rgba(239, 68, 68, 0.8); }
+    }
+
+    .pulse-urgent {
+      animation: pulse-border 2s infinite;
+    }
+  </style>
+</head>
+<body class="antialiased">
+
+  <!-- TOP NAVIGATION BAR -->
+  <nav class="sticky top-0 z-50 border-b border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg/95 bg-light-bg/95 backdrop-blur-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-14">
+        <!-- Logo -->
+        <div class="flex items-center gap-2">
+          <i class="ph ph-binoculars text-xl text-accent"></i>
+          <span class="text-2xl font-semibold tracking-tight text-gray-900 dark:text-dark-text">GitScout</span>
+        </div>
+
+        <!-- Center Nav Tabs -->
+        <div id="nav-tabs" class="flex items-center gap-1 relative">
+          <button id="tab-trending" onclick="switchPage('trending')" class="px-4 py-2 text-sm font-medium text-gray-900 dark:text-dark-text relative">
+            Trending
+            <div id="trending-indicator" class="absolute bottom-0 left-0 right-0 h-0.5 bg-accent tab-underline"></div>
+          </button>
+          <button id="tab-opportunity" onclick="switchPage('opportunity')" class="px-4 py-2 text-sm font-medium text-zinc-500 dark:text-zinc-400 relative">
+            Opportunity
+            <div id="opportunity-indicator" class="absolute bottom-0 left-0 right-0 h-0.5 bg-accent tab-underline hidden"></div>
+          </button>
+        </div>
+
+        <!-- Theme Toggle -->
+        <button onclick="toggleTheme()" class="theme-toggle p-2 rounded-small hover:bg-white dark:bg-dark-surface hover:bg-light-surface" aria-label="Toggle theme">
+          <i id="theme-icon-dark" class="ph ph-moon text-lg text-gray-900 dark:text-dark-text"></i>
+          <i id="theme-icon-light" class="ph ph-sun text-lg text-gray-900 dark:text-dark-text hidden"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- TRENDING PAGE -->
+    <div id="page-trending">
+      <!-- Page Header -->
+      <div class="mb-6">
+        <h1 class="text-3xl font-semibold tracking-tight leading-none text-gray-900 dark:text-dark-text mb-2">Trending Repositories</h1>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400">Scout top repositories and hunt for high-growth open-source opportunities.</p>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="mb-6 space-y-4">
+        <!-- Category Pills -->
+        <div class="flex flex-wrap gap-2">
+          <button onclick="filterCategory('all')" class="category-pill active px-3 py-1.5 text-xs font-medium rounded-pill bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text border border-gray-200 dark:border-dark-border" data-category="all">All</button>
+          <button onclick="filterCategory('ai')" class="category-pill px-3 py-1.5 text-xs font-medium rounded-pill bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text border border-gray-200 dark:border-dark-border" data-category="ai">AI/ML</button>
+          <button onclick="filterCategory('devtools')" class="category-pill px-3 py-1.5 text-xs font-medium rounded-pill bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text border border-gray-200 dark:border-dark-border" data-category="devtools">DevTools</button>
+          <button onclick="filterCategory('web')" class="category-pill px-3 py-1.5 text-xs font-medium rounded-pill bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text border border-gray-200 dark:border-dark-border" data-category="web">Web</button>
+          <button onclick="filterCategory('mobile')" class="category-pill px-3 py-1.5 text-xs font-medium rounded-pill bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text border border-gray-200 dark:border-dark-border" data-category="mobile">Mobile</button>
+          <button onclick="filterCategory('data')" class="category-pill px-3 py-1.5 text-xs font-medium rounded-pill bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text border border-gray-200 dark:border-dark-border" data-category="data">Data</button>
+          <button onclick="filterCategory('infra')" class="category-pill px-3 py-1.5 text-xs font-medium rounded-pill bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text border border-gray-200 dark:border-dark-border" data-category="infra">Infra</button>
+        </div>
+
+        <!-- Controls Row -->
+        <div class="flex flex-wrap gap-3">
+          <!-- Language Dropdown -->
+          <select id="language-filter" onchange="applyFilters()" class="px-3 py-1.5 text-sm rounded-small bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text border border-gray-200 dark:border-dark-border">
+            <option value="">All Languages</option>
+            <option value="python">Python</option>
+            <option value="javascript">JavaScript</option>
+            <option value="typescript">TypeScript</option>
+            <option value="rust">Rust</option>
+            <option value="go">Go</option>
+            <option value="java">Java</option>
+            <option value="cpp">C++</option>
+          </select>
+
+          <!-- Time Range -->
+          <div class="flex items-center gap-1 bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-small p-0.5">
+            <button onclick="setTimeRange('today')" class="time-btn px-3 py-1 text-xs font-medium rounded-pill bg-accent text-white" data-range="today">Today</button>
+            <button onclick="setTimeRange('week')" class="time-btn px-3 py-1 text-xs font-medium rounded-pill text-zinc-500 dark:text-zinc-400" data-range="week">This Week</button>
+            <button onclick="setTimeRange('month')" class="time-btn px-3 py-1 text-xs font-medium rounded-pill text-zinc-500 dark:text-zinc-400" data-range="month">This Month</button>
+          </div>
+
+          <!-- Search Input -->
+          <div class="relative flex-1 min-w-[200px]">
+            <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 dark:text-zinc-400 text-sm"></i>
+            <input id="search-input" type="text" placeholder="Search repositories..." oninput="applyFilters()" class="w-full pl-9 pr-4 py-1.5 text-sm rounded-small bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text border border-gray-200 dark:border-dark-border placeholder-zinc-500">
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div id="loading-state" class="grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
+        <div class="repo-card p-4 rounded-card border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface">
+          <div class="flex gap-3 mb-3">
+            <div class="skeleton w-10 h-10 rounded-lg"></div>
+            <div class="flex-1">
+              <div class="skeleton h-4 w-32 mb-2"></div>
+              <div class="skeleton h-3 w-48"></div>
+            </div>
+          </div>
+          <div class="skeleton h-3 w-full mb-2"></div>
+          <div class="skeleton h-3 w-3/4 mb-3"></div>
+          <div class="flex gap-2 mb-3">
+            <div class="skeleton h-5 w-16 rounded-pill"></div>
+            <div class="skeleton h-5 w-20 rounded-pill"></div>
+            <div class="skeleton h-5 w-14 rounded-pill"></div>
+          </div>
+          <div class="flex items-center gap-4">
+            <div class="skeleton h-3 w-16"></div>
+            <div class="skeleton h-3 w-12"></div>
+            <div class="skeleton h-3 w-20"></div>
+          </div>
+        </div>
+        <div class="repo-card p-4 rounded-card border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface">
+          <div class="flex gap-3 mb-3">
+            <div class="skeleton w-10 h-10 rounded-lg"></div>
+            <div class="flex-1">
+              <div class="skeleton h-4 w-32 mb-2"></div>
+              <div class="skeleton h-3 w-48"></div>
+            </div>
+          </div>
+          <div class="skeleton h-3 w-full mb-2"></div>
+          <div class="skeleton h-3 w-3/4 mb-3"></div>
+          <div class="flex gap-2 mb-3">
+            <div class="skeleton h-5 w-16 rounded-pill"></div>
+            <div class="skeleton h-5 w-20 rounded-pill"></div>
+            <div class="skeleton h-5 w-14 rounded-pill"></div>
+          </div>
+          <div class="flex items-center gap-4">
+            <div class="skeleton h-3 w-16"></div>
+            <div class="skeleton h-3 w-12"></div>
+            <div class="skeleton h-3 w-20"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div id="empty-state" class="hidden py-16 text-center">
+        <i class="ph ph-magnifying-glass text-4xl text-zinc-600 mb-4"></i>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-dark-text mb-1">No repositories found</h3>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400">Try adjusting your filters or search terms.</p>
+      </div>
+
+      <!-- Repository Grid -->
+      <div id="trending-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    </div>
+
+    <!-- OPPORTUNITY PAGE -->
+    <div id="page-opportunity" class="hidden">
+      <!-- Page Header -->
+      <div class="mb-6">
+        <h1 class="text-3xl font-semibold tracking-tight leading-none text-gray-900 dark:text-dark-text mb-2">Opportunity Scout</h1>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400">Hunt for high-potential repositories. Filter by opportunity profile below.</p>
+      </div>
+
+      <!-- Opportunity Type Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        <button onclick="selectOpportunityType('all')" class="opp-type-card selected p-3 rounded-card border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface text-left" data-opp="all">
+          <i class="ph ph-stack text-lg text-accent mb-2"></i>
+          <h4 class="text-sm font-medium text-gray-900 dark:text-dark-text mb-1">All Types</h4>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">View all opportunity categories</p>
+        </button>
+        <button onclick="selectOpportunityType('rising')" class="opp-type-card p-3 rounded-card border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface text-left" data-opp="rising">
+          <i class="ph ph-trend-up text-lg text-green-500 mb-2"></i>
+          <h4 class="text-sm font-medium text-gray-900 dark:text-dark-text mb-1">Rising Stars</h4>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">Fast-growing repos needing early contributors</p>
+        </button>
+        <button onclick="selectOpportunityType('bounty')" class="opp-type-card p-3 rounded-card border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface text-left" data-opp="bounty">
+          <i class="ph ph-currency-circle-dollar text-lg text-accent mb-2"></i>
+          <h4 class="text-sm font-medium text-gray-900 dark:text-dark-text mb-1">Issue Bounty</h4>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">Issues tagged with bounties or rewards</p>
+        </button>
+        <button onclick="selectOpportunityType('abandoned')" class="opp-type-card p-3 rounded-card border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface text-left" data-opp="abandoned">
+          <i class="ph ph-archive text-lg text-amber-500 mb-2"></i>
+          <h4 class="text-sm font-medium text-gray-900 dark:text-dark-text mb-1">Abandoned Gold</h4>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">High-star repos with inactive maintainers</p>
+        </button>
+        <button onclick="selectOpportunityType('firstpr')" class="opp-type-card p-3 rounded-card border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface text-left" data-opp="firstpr">
+          <i class="ph ph-hand-waving text-lg text-green-500 mb-2"></i>
+          <h4 class="text-sm font-medium text-gray-900 dark:text-dark-text mb-1">First PR Friendly</h4>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">Issues labeled for first-time contributors</p>
+        </button>
+        <button onclick="selectOpportunityType('design')" class="opp-type-card p-3 rounded-card border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface text-left" data-opp="design">
+          <i class="ph ph-paint-brush-broad text-lg text-purple-500 mb-2"></i>
+          <h4 class="text-sm font-medium text-gray-900 dark:text-dark-text mb-1">Design Polish</h4>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">Frontend, UI/UX styling and layout polish</p>
+        </button>
+      </div>
+
+      <!-- Loading State -->
+      <div id="opp-loading-state" class="grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
+        <div class="repo-card p-4 rounded-card border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface">
+          <div class="flex gap-3 mb-3">
+            <div class="skeleton w-10 h-10 rounded-lg"></div>
+            <div class="flex-1">
+              <div class="skeleton h-4 w-32 mb-2"></div>
+              <div class="skeleton h-3 w-48"></div>
+            </div>
+          </div>
+          <div class="skeleton h-3 w-full mb-2"></div>
+          <div class="skeleton h-3 w-3/4 mb-3"></div>
+          <div class="flex gap-2 mb-3">
+            <div class="skeleton h-5 w-16 rounded-pill"></div>
+            <div class="skeleton h-5 w-20 rounded-pill"></div>
+          </div>
+          <div class="flex items-center gap-4">
+            <div class="skeleton h-3 w-16"></div>
+            <div class="skeleton h-3 w-12"></div>
+          </div>
+        </div>
+        <div class="repo-card p-4 rounded-card border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface">
+          <div class="flex gap-3 mb-3">
+            <div class="skeleton w-10 h-10 rounded-lg"></div>
+            <div class="flex-1">
+              <div class="skeleton h-4 w-32 mb-2"></div>
+              <div class="skeleton h-3 w-48"></div>
+            </div>
+          </div>
+          <div class="skeleton h-3 w-full mb-2"></div>
+          <div class="skeleton h-3 w-3/4 mb-3"></div>
+          <div class="flex gap-2 mb-3">
+            <div class="skeleton h-5 w-16 rounded-pill"></div>
+            <div class="skeleton h-5 w-20 rounded-pill"></div>
+          </div>
+          <div class="flex items-center gap-4">
+            <div class="skeleton h-3 w-16"></div>
+            <div class="skeleton h-3 w-12"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div id="opp-empty-state" class="hidden py-16 text-center">
+        <i class="ph ph-folder-open text-4xl text-zinc-600 mb-4"></i>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-dark-text mb-1">No opportunities found</h3>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400">Try selecting a different opportunity type.</p>
+      </div>
+
+      <!-- Opportunity Grid -->
+      <div id="opportunity-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    </div>
+
+    <!-- OPPORTUNITY DETAIL PAGE (redesigned — opportunity-first layout) -->
+    <div id="page-opp-detail" class="hidden">
+      <!-- Back Button -->
+      <button onclick="goBackFromDetail()" class="back-btn flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-dark-text mb-6">
+        <i class="ph ph-arrow-left"></i>
+        <span>Back to opportunities</span>
+      </button>
+
+      <!-- Repo Identity Bar (compact) -->
+      <div class="flex items-center gap-3 mb-6">
+        <img id="detail-avatar" src="" alt="" class="w-11 h-11 rounded-lg bg-gray-50 dark:bg-dark-bg">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 id="detail-repo-name" class="text-lg font-semibold tracking-tight text-gray-900 dark:text-dark-text"></h1>
+            <span id="detail-badge"></span>
+          </div>
+          <div id="detail-meta" class="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400 mt-0.5"></div>
+        </div>
+        <a id="detail-github-link" href="#" target="_blank" rel="noopener" class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-small bg-gray-100 dark:bg-dark-surface text-gray-900 dark:text-dark-text border border-gray-200 dark:border-dark-border hover:border-accent transition-colors">
+          <i class="ph ph-github-logo"></i>
+          View on GitHub
+        </a>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- ★ MAIN CONTENT: OPPORTUNITY SPOTLIGHT HERO (High contrast)   -->
+      <!-- ============================================================ -->
+      <div id="detail-spotlight-box" class="rounded-card p-6 md:p-8 mb-6 border transition-all duration-300">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center animate-pulse" id="detail-spotlight-icon-wrapper">
+            <i class="ph ph-lightning text-base" id="detail-spotlight-icon"></i>
+          </div>
+          <span class="text-xs font-semibold uppercase tracking-wider" id="detail-spotlight-label">Developer Opportunity</span>
+        </div>
+        
+        <!-- Big bold pitch statement -->
+        <h2 id="detail-pitch" class="text-lg md:text-xl font-medium text-gray-900 dark:text-dark-text leading-relaxed mb-6"></h2>
+
+        <!-- Asymmetric Sub-panel Grid for Gap & ROI -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <!-- The Gap & Impact Areas -->
+          <div class="p-4 rounded-card border border-gray-200 dark:border-dark-border bg-gray-50/50 dark:bg-dark-surface/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+            <div class="flex items-center gap-2 mb-2 text-red-500 dark:text-red-400">
+              <i class="ph ph-warning-circle text-base"></i>
+              <h4 class="text-xs font-semibold uppercase tracking-wider">SaaS Pain Points & Flaws</h4>
+            </div>
+            <p id="detail-gap-text" class="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed mb-4"></p>
+            <div class="border-t border-gray-100 dark:border-dark-border/40 pt-3">
+              <span class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider block mb-1">Unmet Customer Demand / Feature Gaps</span>
+              <p id="detail-target-text" class="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed font-mono"></p>
+            </div>
+          </div>
+
+          <!-- Developer Return (ROI) -->
+          <div class="p-4 rounded-card border border-gray-200 dark:border-dark-border bg-gray-50/50 dark:bg-dark-surface/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+            <div class="flex items-center gap-2 mb-2 text-green-500 dark:text-green-400">
+              <i class="ph ph-chart-line-up text-base"></i>
+              <h4 class="text-xs font-semibold uppercase tracking-wider">SaaS Monetization Strategy & ROI</h4>
+            </div>
+            <p id="detail-roi-text" class="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed"></p>
+          </div>
+        </div>
+
+        <!-- Opportunity Breakdown Grid -->
+        <div id="detail-opportunity-breakdown" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
+      </div>
+
+      <!-- Quick Action Bar -->
+      <div id="detail-action-bar" class="flex flex-wrap gap-3 mb-8"></div>
+
+      <!-- ============================================================ -->
+      <!-- SUPPORTING DATA (below the fold)                             -->
+      <!-- ============================================================ -->
+
+      <!-- Quick Stats Row -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+        <div class="p-4 rounded-card border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface">
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Stars</p>
+          <div class="flex items-baseline gap-1">
+            <span id="detail-stars" class="text-2xl font-mono font-semibold text-gray-900 dark:text-dark-text"></span>
+            <span id="detail-star-delta" class="text-sm text-green-500 font-mono"></span>
+          </div>
+        </div>
+        <div class="p-4 rounded-card border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface">
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Health Score</p>
+          <div class="flex items-baseline gap-1">
+            <span id="detail-health" class="text-2xl font-mono font-semibold text-accent"></span>
+            <span class="text-sm text-zinc-500 dark:text-zinc-400">/100</span>
+          </div>
+          <p id="detail-health-label" class="text-xs text-zinc-500 dark:text-zinc-400 mt-1"></p>
+        </div>
+        <div class="p-4 rounded-card border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface">
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Bus Factor</p>
+          <div class="flex items-baseline gap-1">
+            <span id="detail-bus" class="text-2xl font-mono font-semibold"></span>
+            <span class="text-sm text-zinc-500 dark:text-zinc-400">maintainers</span>
+          </div>
+          <p id="detail-bus-label" class="text-xs text-zinc-500 dark:text-zinc-400 mt-1"></p>
+        </div>
+        <div class="p-4 rounded-card border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface">
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Forks</p>
+          <div class="flex items-baseline gap-1">
+            <span id="detail-forks" class="text-2xl font-mono font-semibold text-gray-900 dark:text-dark-text"></span>
+          </div>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">community forks</p>
+        </div>
+      </div>
+
+      <!-- Trend & Vitality Intelligence Dashboard -->
+      <div id="detail-trends-dashboard" class="mb-8">
+        <h3 class="text-sm font-semibold text-gray-900 dark:text-dark-text mb-4 flex items-center gap-2">
+          <i class="ph ph-chart-line-up text-accent"></i>
+          Trend & Vitality Intelligence
+        </h3>
+        
+        <!-- Grid layout for the three charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- 1. Star Growth Velocity (Area Chart) -->
+          <div class="lg:col-span-2 p-5 rounded-card border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <span class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider block">Momentum Analytics</span>
+                <h4 class="text-sm font-semibold text-gray-900 dark:text-dark-text">Star Velocity & Growth Curve</h4>
+              </div>
+              <span id="star-growth-rate" class="badge bg-green-500/10 text-green-500 font-mono text-xs">+0.0% MoM</span>
+            </div>
+            <div id="chart-star-velocity" class="w-full h-64"></div>
+          </div>
+
+          <!-- 2. Friction & Resolution Rate (Donut Chart) -->
+          <div class="p-5 rounded-card border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+            <div class="mb-4">
+              <span class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider block">Friction Diagnostics</span>
+              <h4 class="text-sm font-semibold text-gray-900 dark:text-dark-text">Issue Resolution Rate</h4>
+            </div>
+            <div class="relative flex items-center justify-center h-64">
+              <div id="chart-issue-friction" class="w-full"></div>
+            </div>
+          </div>
+
+          <!-- 3. Development Vitality (Bar Chart) -->
+          <div class="lg:col-span-3 p-5 rounded-card border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <span class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider block">Vitality Metrics</span>
+                <h4 class="text-sm font-semibold text-gray-900 dark:text-dark-text">12-Month Commit Activity</h4>
+              </div>
+              <span id="commit-vitality-status" class="badge bg-zinc-500/10 text-zinc-500 dark:text-zinc-400 font-mono text-xs">Stable Maintenance</span>
+            </div>
+            <div id="chart-commit-vitality" class="w-full h-56"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Signals -->
+      <div id="detail-signals-section" class="mb-8">
+        <h3 class="text-sm font-medium text-gray-900 dark:text-dark-text mb-4 flex items-center gap-2">
+          <i class="ph ph-chart-line-up text-accent"></i>
+          Signals
+        </h3>
+        <div id="detail-signals" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+      </div>
+
+      <!-- Open Issues (Actionable) -->
+      <div id="detail-issues-section" class="mb-8">
+        <h3 class="text-sm font-medium text-gray-900 dark:text-dark-text mb-4 flex items-center gap-2">
+          <i class="ph ph-git-pull-request text-accent"></i>
+          Open Issues You Can Work On
+        </h3>
+        <div id="detail-issues" class="space-y-3"></div>
+      </div>
+
+      <!-- Contribution Guide -->
+      <div id="detail-guide-section" class="mb-8">
+        <h3 class="text-sm font-medium text-gray-900 dark:text-dark-text mb-4 flex items-center gap-2">
+          <i class="ph ph-path text-accent"></i>
+          How to Start Contributing
+        </h3>
+        <div id="detail-guide" class="space-y-0"></div>
+      </div>
+
+      <!-- Topics -->
+      <div id="detail-topics-section" class="mb-6">
+        <h3 class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">Topics</h3>
+        <div id="detail-topics" class="flex flex-wrap gap-1.5"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- TRENDING MODAL (for trending repos only) -->
+  <div id="modal-overlay" class="fixed inset-0 z-50 modal-backdrop hidden items-center justify-center p-4" onclick="closeModalOutside(event)">
+    <div id="modal-content" class="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-card max-w-4xl w-full max-h-[85vh] overflow-y-auto relative" onclick="event.stopPropagation()">
+      <button onclick="closeModal()" class="absolute top-4 right-4 p-2 rounded-small hover:bg-gray-100 dark:hover:bg-dark-bg text-zinc-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-dark-text z-10" aria-label="Close modal">
+        <i class="ph ph-x text-lg"></i>
+      </button>
+
+      <div class="p-6 pb-4 border-b border-gray-200 dark:border-dark-border">
+        <div class="flex items-center gap-3 mb-2">
+          <img id="modal-avatar" src="" alt="" class="w-10 h-10 rounded-lg">
+          <div>
+            <h2 id="modal-title" class="text-xl font-semibold tracking-tight text-gray-900 dark:text-dark-text"></h2>
+            <p id="modal-subtitle" class="text-sm text-zinc-500 dark:text-zinc-400"></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div id="modal-health" class="p-4 rounded-card border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg">
+            <h3 class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Health Score</h3>
+            <div class="flex items-baseline gap-1">
+              <span id="modal-health-score" class="text-4xl font-mono font-semibold text-accent"></span>
+              <span class="text-sm text-zinc-500 dark:text-zinc-400">/100</span>
+            </div>
+            <p id="modal-health-label" class="text-xs text-zinc-500 dark:text-zinc-400 mt-1"></p>
+          </div>
+
+          <div id="modal-sparkline" class="p-4 rounded-card border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg md:col-span-2">
+            <h3 class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">Activity (Last 30 Days)</h3>
+            <div class="flex items-end gap-0.5 h-12" id="sparkline-bars"></div>
+          </div>
+
+          <div id="modal-signals" class="p-4 rounded-card border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg md:col-span-2">
+            <h3 class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">Signals</h3>
+            <div id="signals-list" class="space-y-2"></div>
+          </div>
+
+          <div id="modal-bus" class="p-4 rounded-card border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg">
+            <h3 class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Bus Factor</h3>
+            <div id="bus-factor-content" class="space-y-2"></div>
+          </div>
+
+          <div id="modal-fork" class="p-4 rounded-card border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg md:col-span-3">
+            <h3 class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Fork Opportunity</h3>
+            <p id="modal-fork-text" class="text-sm text-zinc-600 dark:text-zinc-400"></p>
+            <div id="modal-fork-tags" class="flex flex-wrap gap-2 mt-3"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // MOCK DATA
+    // ==========================================
+
+    const trendingRepos = [
+      {
+        id: 1,
+        owner: 'tensorlayer',
+        name: 'voxelforge',
+        description: 'High-performance 3D voxel engine with GPU-accelerated ray marching. Built for procedural generation and real-time editing.',
+        language: 'rust',
+        stars: 12847,
+        starDelta: 1423,
+        forks: 892,
+        topics: ['rust', '3d', 'voxel', 'gaming', 'gpu'],
+        category: 'ai',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=voxelforge'
+      },
+      {
+        id: 2,
+        owner: 'neuralflow',
+        name: 'promptdeck',
+        description: 'Unified API for testing and comparing LLM prompts across providers. Ships with built-in eval harness and cost tracking.',
+        language: 'python',
+        stars: 8432,
+        starDelta: 892,
+        forks: 534,
+        topics: ['llm', 'prompt-engineering', 'api', 'evaluation'],
+        category: 'ai',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=promptdeck'
+      },
+      {
+        id: 3,
+        owner: 'quickbyte',
+        name: 'dbmate-go',
+        description: 'Lightweight database migration tool for Go. Supports PostgreSQL, MySQL, SQLite, and ClickHouse with zero dependencies.',
+        language: 'go',
+        stars: 6721,
+        starDelta: 634,
+        forks: 412,
+        topics: ['database', 'migrations', 'golang', 'cli'],
+        category: 'data',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=dbmate-go'
+      },
+      {
+        id: 4,
+        owner: 'solarpunk-dev',
+        name: 'terraform-cloud',
+        description: 'Open-source alternative to Terraform Cloud. Self-hosted infrastructure provisioning with collaborative state management.',
+        language: 'typescript',
+        stars: 15203,
+        starDelta: 2104,
+        forks: 1247,
+        topics: ['infrastructure', 'terraform', 'devops', 'self-hosted'],
+        category: 'infra',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=terraform-cloud'
+      },
+      {
+        id: 5,
+        owner: 'rustshell',
+        name: 'ionshell',
+        description: 'Blazing fast shell written in Rust. POSIX-compatible with modern features like async pipelines and smart tab completion.',
+        language: 'rust',
+        stars: 9876,
+        starDelta: 1056,
+        forks: 678,
+        topics: ['shell', 'rust', 'cli', 'posix', 'terminal'],
+        category: 'devtools',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=ionshell'
+      },
+      {
+        id: 6,
+        owner: 'webcore-labs',
+        name: 'reactive-table',
+        description: 'Zero-config data table component for React. Virtual scrolling, column sorting, filtering, and CSV export out of the box.',
+        language: 'typescript',
+        stars: 7654,
+        starDelta: 743,
+        forks: 521,
+        topics: ['react', 'table', 'component', 'typescript', 'ui'],
+        category: 'web',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=reactive-table'
+      },
+      {
+        id: 7,
+        owner: 'mobilecraft',
+        name: 'swiftkit-lite',
+        description: 'Minimal iOS development toolkit. Camera, storage, networking, and analytics in a single lightweight package.',
+        language: 'swift',
+        stars: 4321,
+        starDelta: 312,
+        forks: 287,
+        topics: ['ios', 'swift', 'mobile', 'toolkit'],
+        category: 'mobile',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=swiftkit-lite'
+      },
+      {
+        id: 8,
+        owner: 'dataweave',
+        name: 'arrowdb',
+        description: 'Columnar database optimized for analytical queries. Apache Arrow integration for zero-copy data sharing between systems.',
+        language: 'cpp',
+        stars: 11234,
+        starDelta: 1567,
+        forks: 834,
+        topics: ['database', 'analytics', 'arrow', 'columnar', 'cpp'],
+        category: 'data',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=arrowdb'
+      },
+      {
+        id: 9,
+        owner: 'devflow-io',
+        name: 'pr-review-bot',
+        description: 'Automated code review assistant. Integrates with GitHub Actions to provide linting, security scans, and AI-powered suggestions.',
+        language: 'python',
+        stars: 5432,
+        starDelta: 456,
+        forks: 312,
+        topics: ['github-actions', 'code-review', 'automation', 'python'],
+        category: 'devtools',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=pr-review-bot'
+      },
+      {
+        id: 10,
+        owner: 'kubeforge',
+        name: 'k8s-operator-sdk',
+        description: 'Framework for building Kubernetes operators in Go. Simplifies custom resource definitions and reconciliation loops.',
+        language: 'go',
+        stars: 8901,
+        starDelta: 923,
+        forks: 645,
+        topics: ['kubernetes', 'operator', 'golang', 'devops'],
+        category: 'infra',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=k8s-operator-sdk'
+      },
+      {
+        id: 11,
+        owner: 'neuralpaint',
+        name: 'diffusion-studio',
+        description: 'Real-time image generation UI with model switching. Supports Stable Diffusion, Flux, and custom ONNX models locally.',
+        language: 'python',
+        stars: 18923,
+        starDelta: 2847,
+        forks: 1523,
+        topics: ['stable-diffusion', 'image-generation', 'gui', 'ai'],
+        category: 'ai',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=diffusion-studio'
+      },
+      {
+        id: 12,
+        owner: 'flutterkit',
+        name: 'flutter-widgets',
+        description: 'Collection of 50+ production-ready Flutter widgets. Custom painters, animations, and adaptive layouts included.',
+        language: 'dart',
+        stars: 6234,
+        starDelta: 534,
+        forks: 423,
+        topics: ['flutter', 'dart', 'widgets', 'mobile', 'ui'],
+        category: 'mobile',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=flutter-widgets'
+      },
+      {
+        id: 13,
+        owner: 'streamforge',
+        name: 'kafka-lite',
+        description: 'Embedded message broker compatible with Kafka protocol. Perfect for development and testing without external dependencies.',
+        language: 'java',
+        stars: 7891,
+        starDelta: 687,
+        forks: 534,
+        topics: ['kafka', 'messaging', 'broker', 'java', 'embedded'],
+        category: 'data',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=kafka-lite'
+      },
+      {
+        id: 14,
+        owner: 'webcraft',
+        name: 'astro-icons',
+        description: 'Icon library optimized for Astro framework. Tree-shakeable, accessible, with 2000+ icons in multiple formats.',
+        language: 'typescript',
+        stars: 3456,
+        starDelta: 234,
+        forks: 189,
+        topics: ['astro', 'icons', 'typescript', 'web-components'],
+        category: 'web',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=astro-icons'
+      }
+    ];
+
+    const opportunityRepos = [
+      {
+        id: 101,
+        owner: 'openml-toolkit',
+        name: 'feature-store',
+        description: 'Feature store for ML pipelines. Manages feature computation, storage, and serving with point-in-time correctness.',
+        language: 'python',
+        stars: 3421,
+        starDelta: 234,
+        forks: 198,
+        topics: ['ml', 'feature-store', 'python', 'data-pipeline'],
+        category: 'ai',
+        oppType: 'rising',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=feature-store',
+        healthScore: 72,
+        activity: [3,5,2,7,4,6,8,3,5,9,4,6,2,8,5,7,3,4,6,9,2,5,7,4,8,3,6,5,7,4],
+        signals: [
+          { type: 'positive', icon: 'ph-trend-up', text: 'Star growth 40% month-over-month' },
+          { type: 'positive', icon: 'ph-git-branch', text: 'Active PRs merged in last 7 days' },
+          { type: 'warning', icon: 'ph-users', text: 'Only 2 active maintainers' },
+          { type: 'neutral', icon: 'ph-calendar', text: 'Created 8 months ago' }
+        ],
+        busFactor: 2,
+        forkOpportunity: 'Strong candidate for contribution. Open issues tagged good-first-issue. Documentation needs improvement.',
+        forkTags: ['documentation', 'good-first-issue', 'python', 'ml'],
+        opportunityPitch: 'Feature store is the missing piece in most ML pipelines. This project is growing fast (40% MoM) but only has 2 maintainers. Contributing now means you get to shape the architecture of what could become the standard feature store for Python ML.',
+        issues: [
+          { num: 142, title: 'Add Redis backend for feature serving', difficulty: 'medium', time: '1-2 days', labels: ['enhancement', 'good-first-issue'], url: '#' },
+          { num: 156, title: 'Implement point-in-time joins for streaming features', difficulty: 'hard', time: '3-5 days', labels: ['core', 'enhancement'], url: '#' },
+          { num: 163, title: 'Fix timezone handling in feature computation', difficulty: 'easy', time: '2-4 hours', labels: ['bug', 'good-first-issue'], url: '#' },
+          { num: 171, title: 'Add Parquet format support for offline store', difficulty: 'medium', time: '1-2 days', labels: ['enhancement'], url: '#' },
+          { num: 180, title: 'Write migration guide from Feast', difficulty: 'easy', time: '4-6 hours', labels: ['documentation'], url: '#' }
+        ],
+        contributionGuide: [
+          { step: 1, title: 'Fork and clone', detail: 'git clone your-fork && cd feature-store', icon: 'ph-git-fork' },
+          { step: 2, title: 'Install dependencies', detail: 'pip install -e ".[dev]" && pre-commit install', icon: 'ph-package' },
+          { step: 3, title: 'Run tests', detail: 'pytest tests/ -x --tb=short', icon: 'ph-test-tube' },
+          { step: 4, title: 'Pick an issue', detail: 'Start with label good-first-issue', icon: 'ph-flag' }
+        ]
+      },
+      {
+        id: 102,
+        owner: 'bounty-hunter',
+        name: 'api-gateway-rs',
+        description: 'Lightweight API gateway in Rust. Rate limiting, auth middleware, and request routing with sub-millisecond latency.',
+        language: 'rust',
+        stars: 5678,
+        starDelta: 456,
+        forks: 312,
+        topics: ['api-gateway', 'rust', 'middleware', 'rate-limiting'],
+        category: 'infra',
+        oppType: 'bounty',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=api-gateway-rs',
+        healthScore: 81,
+        activity: [5,7,3,8,6,4,9,5,7,3,6,8,4,7,5,9,3,6,8,4,7,5,3,8,6,4,9,5,7,3],
+        signals: [
+          { type: 'positive', icon: 'ph-currency-circle-dollar', text: '3 issues with bounties ($50-$200)' },
+          { type: 'positive', icon: 'ph-star', text: 'High star count indicates strong demand' },
+          { type: 'warning', icon: 'ph-warning', text: 'Open security audit issues pending' },
+          { type: 'negative', icon: 'ph-clock', text: 'Last release 45 days ago' }
+        ],
+        busFactor: 3,
+        forkOpportunity: 'Active bounty program. Well-documented contribution guide. Good codebase for learning Rust async patterns.',
+        forkTags: ['bounty', 'rust', 'async', 'good-first-issue'],
+        opportunityPitch: 'Real money on the table. Three open bounties ranging $50-$200, plus the codebase is a masterclass in Rust async. Contributing here levels up your Rust skills AND pays you.',
+        issues: [
+          { num: 89, title: 'Implement JWT token validation middleware', difficulty: 'medium', time: '$100 bounty', labels: ['bounty', 'security'], url: '#' },
+          { num: 94, title: 'Add rate limiting with sliding window algorithm', difficulty: 'medium', time: '$150 bounty', labels: ['bounty', 'performance'], url: '#' },
+          { num: 101, title: 'Fix connection pool leak under high concurrency', difficulty: 'hard', time: '$200 bounty', labels: ['bounty', 'bug', 'critical'], url: '#' },
+          { num: 108, title: 'Add OpenTelemetry tracing support', difficulty: 'medium', time: '2-3 days', labels: ['observability', 'enhancement'], url: '#' }
+        ],
+        contributionGuide: [
+          { step: 1, title: 'Fork and clone', detail: 'git clone your-fork && cd api-gateway-rs', icon: 'ph-git-fork' },
+          { step: 2, title: 'Build project', detail: 'cargo build && cargo test', icon: 'ph-hammer' },
+          { step: 3, title: 'Read CONTRIBUTING.md', detail: 'Detailed bounty claim process inside', icon: 'ph-book-open' },
+          { step: 4, title: 'Claim a bounty', detail: 'Comment on the issue to claim before starting', icon: 'ph-currency-circle-dollar' }
+        ]
+      },
+      {
+        id: 103,
+        owner: 'legacy-tools',
+        name: 'csv-converter',
+        description: 'Battle-tested CSV parsing library. Handles edge cases that break most parsers. 100% test coverage, zero dependencies.',
+        language: 'javascript',
+        stars: 12456,
+        starDelta: 23,
+        forks: 1834,
+        topics: ['csv', 'parser', 'javascript', 'utilities'],
+        category: 'web',
+        oppType: 'abandoned',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=csv-converter',
+        healthScore: 45,
+        activity: [1,0,2,0,1,0,0,1,0,0,2,0,1,0,0,0,1,0,0,0,1,0,0,2,0,0,1,0,0,0],
+        signals: [
+          { type: 'warning', icon: 'ph-archive', text: 'No commits in last 180 days' },
+          { type: 'negative', icon: 'ph-user-x', text: 'Maintainer unresponsive to issues' },
+          { type: 'positive', icon: 'ph-star', text: 'High star count, strong community demand' },
+          { type: 'neutral', icon: 'ph-git-fork', text: '340+ open forks with unmerged improvements' }
+        ],
+        busFactor: 0,
+        forkOpportunity: 'Fork and maintain. Many unmerged PRs with valuable improvements. Strong candidate for community fork.',
+        forkTags: ['fork-opportunity', 'maintenance', 'community', 'javascript'],
+        opportunityPitch: '12k stars, zero maintainer. This is a community fork waiting to happen. 340+ forks already exist with unmerged improvements. Whoever steps up to maintain this becomes the de facto CSV parser for the JS ecosystem.',
+        issues: [
+          { num: 445, title: 'CVE-2024-XXXX: ReDoS in quoted field parsing', difficulty: 'medium', time: '4-6 hours', labels: ['security', 'critical'], url: '#' },
+          { num: 448, title: 'Streaming parser hangs on malformed input', difficulty: 'hard', time: '1-2 days', labels: ['bug', 'critical'], url: '#' },
+          { num: 451, title: '12 unmerged PRs with performance improvements', difficulty: 'varies', time: '1 week', labels: ['maintenance', 'community'], url: '#' },
+          { num: 455, title: 'TypeScript type definitions outdated', difficulty: 'easy', time: '2-3 hours', labels: ['types', 'good-first-issue'], url: '#' }
+        ],
+        contributionGuide: [
+          { step: 1, title: 'Fork the repo', detail: 'Create your own fork to become the new maintainer', icon: 'ph-git-fork' },
+          { step: 2, title: 'Review open PRs', detail: '340+ unmerged PRs with valuable improvements', icon: 'ph-git-pull-request' },
+          { step: 3, title: 'Fix critical issues', detail: 'Security patches and bug fixes first', icon: 'ph-shield-check' },
+          { step: 4, title: 'Announce the fork', detail: 'Post on npm, Reddit, Twitter to gather community', icon: 'ph-megaphone' }
+        ]
+      },
+      {
+        id: 104,
+        owner: 'welcomelab',
+        name: 'docsify-cli',
+        description: 'CLI tool for generating documentation sites. Markdown in, beautiful docs out. Plugins for API reference and changelogs.',
+        language: 'typescript',
+        stars: 4567,
+        starDelta: 345,
+        forks: 278,
+        topics: ['documentation', 'cli', 'markdown', 'typescript'],
+        category: 'devtools',
+        oppType: 'firstpr',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=docsify-cli',
+        healthScore: 76,
+        activity: [4,6,3,7,5,8,4,6,3,7,5,8,4,6,3,7,5,8,4,6,3,7,5,8,4,6,3,7,5,8],
+        signals: [
+          { type: 'positive', icon: 'ph-hand-waving', text: '12 issues labeled good-first-issue' },
+          { type: 'positive', icon: 'ph-book-open', text: 'Detailed contributing guide' },
+          { type: 'positive', icon: 'ph-chat-circle', text: 'Responsive maintainer (avg 2 days)' },
+          { type: 'neutral', icon: 'ph-code', text: 'TypeScript, beginner-friendly codebase' }
+        ],
+        busFactor: 4,
+        forkOpportunity: 'Excellent for first-time contributors. Clear issue labels, helpful maintainer, well-documented codebase.',
+        forkTags: ['good-first-issue', 'beginner-friendly', 'documentation', 'typescript'],
+        opportunityPitch: 'The perfect first PR. 12 issues explicitly labeled good-first-issue, a maintainer who responds within 2 days, and a TypeScript codebase that reads like a tutorial. Start your open source journey here.',
+        issues: [
+          { num: 201, title: 'Add --watch flag for live reload', difficulty: 'easy', time: '3-4 hours', labels: ['good-first-issue', 'enhancement'], url: '#' },
+          { num: 208, title: 'Support custom themes directory', difficulty: 'easy', time: '2-3 hours', labels: ['good-first-issue', 'enhancement'], url: '#' },
+          { num: 215, title: 'Fix sidebar scroll position on page change', difficulty: 'easy', time: '1-2 hours', labels: ['good-first-issue', 'bug'], url: '#' },
+          { num: 223, title: 'Add mermaid diagram plugin', difficulty: 'medium', time: '1-2 days', labels: ['plugin', 'enhancement'], url: '#' }
+        ],
+        contributionGuide: [
+          { step: 1, title: 'Fork and clone', detail: 'git clone your-fork && cd docsify-cli', icon: 'ph-git-fork' },
+          { step: 2, title: 'Install', detail: 'npm install && npm run build', icon: 'ph-package' },
+          { step: 3, title: 'Run dev server', detail: 'npm run dev -- --open', icon: 'ph-play' },
+          { step: 4, title: 'Pick a good-first-issue', detail: 'Filter by label on the Issues tab', icon: 'ph-flag' }
+        ]
+      },
+      {
+        id: 105,
+        owner: 'microservices-io',
+        name: 'grpc-gateway',
+        description: 'gRPC to REST proxy generator. Auto-generates RESTful APIs from protobuf definitions with OpenAPI spec support.',
+        language: 'go',
+        stars: 8901,
+        starDelta: 678,
+        forks: 534,
+        topics: ['grpc', 'rest', 'gateway', 'protobuf', 'golang'],
+        category: 'infra',
+        oppType: 'bounty',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=grpc-gateway',
+        healthScore: 85,
+        activity: [7,8,6,9,7,8,6,9,7,8,6,9,7,8,6,9,7,8,6,9,7,8,6,9,7,8,6,9,7,8],
+        signals: [
+          { type: 'positive', icon: 'ph-currency-circle-dollar', text: '$500 bounty for streaming support' },
+          { type: 'positive', icon: 'ph-trend-up', text: 'Consistent weekly releases' },
+          { type: 'positive', icon: 'ph-shield-check', text: 'Security audited last quarter' },
+          { type: 'warning', icon: 'ph-database', text: 'High memory usage with large payloads' }
+        ],
+        busFactor: 5,
+        forkOpportunity: 'Well-maintained with active bounty program. High-value contributions rewarded. Enterprise adoption growing.',
+        forkTags: ['bounty', 'enterprise', 'grpc', 'high-impact'],
+        opportunityPitch: '$500 bounty for streaming support. This is enterprise-grade infrastructure used by Fortune 500 companies. Your contribution gets massive exposure and the bounty is real.',
+        issues: [
+          { num: 312, title: 'Implement bidirectional streaming support', difficulty: 'hard', time: '$500 bounty', labels: ['bounty', 'streaming', 'core'], url: '#' },
+          { num: 318, title: 'Reduce memory usage for large protobuf messages', difficulty: 'hard', time: '3-5 days', labels: ['performance', 'enhancement'], url: '#' },
+          { num: 325, title: 'Add gRPC-Web support for browser clients', difficulty: 'medium', time: '2-3 days', labels: ['enhancement', 'web'], url: '#' }
+        ],
+        contributionGuide: [
+          { step: 1, title: 'Fork and clone', detail: 'git clone your-fork && cd grpc-gateway', icon: 'ph-git-fork' },
+          { step: 2, title: 'Install protoc', detail: 'Follow docs/protoc-install.md', icon: 'ph-gear' },
+          { step: 3, title: 'Generate code', detail: 'make generate && make test', icon: 'ph-hammer' },
+          { step: 4, title: 'Claim bounty', detail: 'Comment on issue to claim before starting work', icon: 'ph-currency-circle-dollar' }
+        ]
+      },
+      {
+        id: 106,
+        owner: 'pixelforge',
+        name: 'image-optimizer',
+        description: 'Web image optimization pipeline. Converts, compresses, and generates responsive variants. Supports AVIF and WebP.',
+        language: 'rust',
+        stars: 6789,
+        starDelta: 567,
+        forks: 423,
+        topics: ['image-processing', 'optimization', 'webp', 'avif', 'rust'],
+        category: 'web',
+        oppType: 'rising',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=image-optimizer',
+        healthScore: 78,
+        activity: [6,5,8,7,6,5,8,7,6,5,8,7,6,5,8,7,6,5,8,7,6,5,8,7,6,5,8,7,6,5],
+        signals: [
+          { type: 'positive', icon: 'ph-trend-up', text: 'Growing adoption in Next.js ecosystem' },
+          { type: 'positive', icon: 'ph-star', text: 'Featured in JavaScript Weekly' },
+          { type: 'warning', icon: 'ph-issue', text: '15 open issues need triage' },
+          { type: 'neutral', icon: 'ph-calendar', text: 'v2.0 release planned for next month' }
+        ],
+        busFactor: 3,
+        forkOpportunity: 'Fast-growing project seeking early contributors. Good opportunity to shape v2.0 architecture.',
+        forkTags: ['early-contributor', 'v2-development', 'rust', 'web-performance'],
+        opportunityPitch: 'v2.0 is being designed RIGHT NOW. Early contributors get architectural influence over what will become the standard image optimization tool for the web. 15 issues need triage - your input matters.',
+        issues: [
+          { num: 201, title: 'Design v2.0 plugin architecture', difficulty: 'hard', time: 'RFC + 1 week', labels: ['v2', 'architecture', 'rfc'], url: '#' },
+          { num: 208, title: 'Add AVIF encoding quality presets', difficulty: 'medium', time: '1-2 days', labels: ['enhancement', 'avif'], url: '#' },
+          { num: 215, title: 'Fix WebP lossless compression ratio regression', difficulty: 'medium', time: '2-3 days', labels: ['bug', 'performance'], url: '#' },
+          { num: 220, title: 'Write Next.js integration guide', difficulty: 'easy', time: '4-6 hours', labels: ['documentation', 'good-first-issue'], url: '#' }
+        ],
+        contributionGuide: [
+          { step: 1, title: 'Fork and clone', detail: 'git clone your-fork && cd image-optimizer', icon: 'ph-git-fork' },
+          { step: 2, title: 'Install Rust toolchain', detail: 'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh', icon: 'ph-hammer' },
+          { step: 3, title: 'Build and test', detail: 'cargo build --release && cargo test', icon: 'ph-test-tube' },
+          { step: 4, title: 'Join the v2 discussion', detail: 'See RFC #201 in the repo', icon: 'ph-chat-circle' }
+        ]
+      },
+      {
+        id: 107,
+        owner: 'datacraft',
+        name: 'etl-pipeline',
+        description: 'Python ETL framework with visual pipeline builder. Supports parallel execution, retry logic, and data quality checks.',
+        language: 'python',
+        stars: 2345,
+        starDelta: 189,
+        forks: 156,
+        topics: ['etl', 'data-pipeline', 'python', 'visual-builder'],
+        category: 'data',
+        oppType: 'firstpr',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=etl-pipeline',
+        healthScore: 68,
+        activity: [3,4,2,5,3,4,2,5,3,4,2,5,3,4,2,5,3,4,2,5,3,4,2,5,3,4,2,5,3,4],
+        signals: [
+          { type: 'positive', icon: 'ph-hand-waving', text: '8 issues labeled first-timer-only' },
+          { type: 'positive', icon: 'ph-chat-circle', text: 'Active Discord community' },
+          { type: 'warning', icon: 'ph-book', text: 'Documentation partially incomplete' },
+          { type: 'neutral', icon: 'ph-test-tube', text: 'Test coverage at 65%' }
+        ],
+        busFactor: 2,
+        forkOpportunity: 'Great entry point for data engineers. Active mentorship for new contributors. Documentation PRs especially welcome.',
+        forkTags: ['first-timer-only', 'mentorship', 'documentation', 'python'],
+        opportunityPitch: 'Active Discord mentorship + 8 first-timer-only issues. If you are a data engineer who wants to start contributing to OSS, this is the friendliest entry point you will find.',
+        issues: [
+          { num: 89, title: 'Add CSV connector with auto-detection', difficulty: 'easy', time: '3-4 hours', labels: ['first-timer-only', 'connector'], url: '#' },
+          { num: 95, title: 'Write tutorial: Building your first ETL pipeline', difficulty: 'easy', time: '4-6 hours', labels: ['first-timer-only', 'documentation'], url: '#' },
+          { num: 101, title: 'Add progress bar for long-running transforms', difficulty: 'easy', time: '2-3 hours', labels: ['first-timer-only', 'ux'], url: '#' },
+          { num: 108, title: 'Fix retry logic not respecting max attempts', difficulty: 'medium', time: '4-6 hours', labels: ['bug', 'good-first-issue'], url: '#' }
+        ],
+        contributionGuide: [
+          { step: 1, title: 'Fork and clone', detail: 'git clone your-fork && cd etl-pipeline', icon: 'ph-git-fork' },
+          { step: 2, title: 'Set up Python env', detail: 'python -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"', icon: 'ph-package' },
+          { step: 3, title: 'Run tests', detail: 'pytest tests/ -v', icon: 'ph-test-tube' },
+          { step: 4, title: 'Join Discord', detail: 'Link in README - ask for mentorship', icon: 'ph-discord-logo' }
+        ]
+      },
+      {
+        id: 108,
+        owner: 'cloudnative',
+        name: 'helm-charts',
+        description: 'Production-ready Helm charts for popular applications. Includes monitoring, logging, and security best practices.',
+        language: 'yaml',
+        stars: 15678,
+        starDelta: 1234,
+        forks: 987,
+        topics: ['helm', 'kubernetes', 'charts', 'devops', 'cloud-native'],
+        category: 'infra',
+        oppType: 'abandoned',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=helm-charts',
+        healthScore: 42,
+        activity: [2,0,1,0,0,2,0,1,0,0,2,0,1,0,0,2,0,1,0,0,2,0,1,0,0,2,0,1,0,0],
+        signals: [
+          { type: 'negative', icon: 'ph-user-x', text: 'Maintainer inactive since January' },
+          { type: 'negative', icon: 'ph-warning', text: 'Critical security patches pending' },
+          { type: 'positive', icon: 'ph-star', text: 'Used by 2000+ organizations' },
+          { type: 'warning', icon: 'ph-issue', text: '340+ open issues with no responses' }
+        ],
+        busFactor: 0,
+        forkOpportunity: 'Urgent fork needed. Critical security patches waiting. Strong community support for fork effort.',
+        forkTags: ['urgent-fork', 'security', 'community-support', 'kubernetes'],
+        opportunityPitch: 'URGENT: Maintainer gone since January. Critical security patches pending. 340+ issues unanswered. 2000+ orgs depend on this. Whoever forks this becomes a hero to the Kubernetes community.',
+        issues: [
+          { num: 567, title: 'Apply CVE-2024-XXXX security patch to all charts', difficulty: 'medium', time: '1-2 days', labels: ['security', 'critical', 'urgent'], url: '#' },
+          { num: 570, title: 'Triage 340+ unresponded issues', difficulty: 'easy', time: '2-3 days', labels: ['maintenance', 'triage'], url: '#' },
+          { num: 575, title: 'Update charts to latest app versions', difficulty: 'medium', time: '1 week', labels: ['maintenance', 'updates'], url: '#' },
+          { num: 580, title: 'Add GitHub Actions CI for chart testing', difficulty: 'medium', time: '2-3 days', labels: ['ci', 'enhancement'], url: '#' }
+        ],
+        contributionGuide: [
+          { step: 1, title: 'Fork the repo', detail: 'Create fork as new home for helm-charts', icon: 'ph-git-fork' },
+          { step: 2, title: 'Install Helm', detail: 'brew install helm (or see helm.sh)', icon: 'ph-package' },
+          { step: 3, title: 'Test charts', detail: 'helm template charts/ && helm lint charts/', icon: 'ph-test-tube' },
+          { step: 4, title: 'Apply security patches', detail: 'Start with issues labeled security+critical', icon: 'ph-shield-check' }
+        ]
+      },
+      {
+        id: 109,
+        owner: 'mobiledev',
+        name: 'react-native-maps',
+        description: 'Cross-platform map component for React Native. Custom markers, clustering, and offline tile support.',
+        language: 'typescript',
+        stars: 9876,
+        starDelta: 432,
+        forks: 2345,
+        topics: ['react-native', 'maps', 'mobile', 'cross-platform'],
+        category: 'mobile',
+        oppType: 'firstpr',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=react-native-maps',
+        healthScore: 74,
+        activity: [5,6,4,7,5,6,4,7,5,6,4,7,5,6,4,7,5,6,4,7,5,6,4,7,5,6,4,7,5,6],
+        signals: [
+          { type: 'positive', icon: 'ph-hand-waving', text: '15 good-first-issue labels' },
+          { type: 'positive', icon: 'ph-book-open', text: 'Comprehensive example project' },
+          { type: 'warning', icon: 'ph-clock', text: 'Slow review cycle (avg 7 days)' },
+          { type: 'neutral', icon: 'ph-code', text: 'TypeScript with clear interfaces' }
+        ],
+        busFactor: 3,
+        forkOpportunity: 'Well-documented codebase ideal for learning React Native internals. Multiple easy win issues available.',
+        forkTags: ['good-first-issue', 'react-native', 'learning-opportunity', 'maps'],
+        opportunityPitch: '15 good-first-issue labels + example project included. The review cycle is slow (7 days) so plan ahead, but the learning opportunity is huge. You will understand native modules deeply.',
+        issues: [
+          { num: 301, title: 'Add custom marker clustering algorithm', difficulty: 'medium', time: '2-3 days', labels: ['good-first-issue', 'feature'], url: '#' },
+          { num: 308, title: 'Fix map region change event firing twice', difficulty: 'easy', time: '3-4 hours', labels: ['good-first-issue', 'bug'], url: '#' },
+          { num: 315, title: 'Support offline tile caching', difficulty: 'hard', time: '1 week', labels: ['feature', 'enhancement'], url: '#' },
+          { num: 320, title: 'Add TypeScript strict mode types', difficulty: 'easy', time: '4-6 hours', labels: ['good-first-issue', 'types'], url: '#' }
+        ],
+        contributionGuide: [
+          { step: 1, title: 'Fork and clone', detail: 'git clone your-fork && cd react-native-maps', icon: 'ph-git-fork' },
+          { step: 2, title: 'Install dependencies', detail: 'yarn install && cd example && yarn install', icon: 'ph-package' },
+          { step: 3, title: 'Run example app', detail: 'npx react-native run-ios (or run-android)', icon: 'ph-device-mobile' },
+          { step: 4, title: 'Pick a good-first-issue', detail: 'Filter Issues by label', icon: 'ph-flag' }
+        ]
+      },
+      {
+        id: 110,
+        owner: 'perfengine',
+        name: 'benchmark-suite',
+        description: 'Microbenchmark framework for JavaScript and TypeScript. Statistical analysis, regression detection, and CI integration.',
+        language: 'typescript',
+        stars: 3456,
+        starDelta: 234,
+        forks: 178,
+        topics: ['benchmarking', 'performance', 'javascript', 'ci-cd'],
+        category: 'devtools',
+        oppType: 'rising',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=benchmark-suite',
+        healthScore: 79,
+        activity: [6,7,5,8,6,7,5,8,6,7,5,8,6,7,5,8,6,7,5,8,6,7,5,8,6,7,5,8,6,7],
+        signals: [
+          { type: 'positive', icon: 'ph-trend-up', text: 'Adopted by 3 major Node.js projects' },
+          { type: 'positive', icon: 'ph-git-pull-request', text: '4 PRs merged this week' },
+          { type: 'warning', icon: 'ph-test-tube', text: 'Flaky tests in CI pipeline' },
+          { type: 'neutral', icon: 'ph-calendar', text: 'Monthly release cadence' }
+        ],
+        busFactor: 2,
+        forkOpportunity: 'Rapidly growing tool seeking contributors. Good opportunity to influence performance testing standards.',
+        forkTags: ['rapid-growth', 'performance', 'testing', 'typescript'],
+        opportunityPitch: '3 major Node.js projects already adopted this. Contributing here means your work impacts the performance testing standards of the entire JS ecosystem. Flaky CI tests need fixing ASAP.',
+        issues: [
+          { num: 78, title: 'Fix flaky statistical analysis tests', difficulty: 'medium', time: '4-6 hours', labels: ['ci', 'bug', 'urgent'], url: '#' },
+          { num: 82, title: 'Add Vitest runner integration', difficulty: 'medium', time: '1-2 days', labels: ['enhancement', 'integration'], url: '#' },
+          { num: 89, title: 'Implement regression detection with historical data', difficulty: 'hard', time: '3-5 days', labels: ['feature', 'core'], url: '#' },
+          { num: 93, title: 'Add benchmark comparison CLI command', difficulty: 'easy', time: '3-4 hours', labels: ['good-first-issue', 'cli'], url: '#' }
+        ],
+        contributionGuide: [
+          { step: 1, title: 'Fork and clone', detail: 'git clone your-fork && cd benchmark-suite', icon: 'ph-git-fork' },
+          { step: 2, title: 'Install', detail: 'npm install', icon: 'ph-package' },
+          { step: 3, title: 'Run tests', detail: 'npm test (watch for flaky ones!)', icon: 'ph-test-tube' },
+          { step: 4, title: 'Start with CI fixes', detail: 'Flaky tests = easiest wins', icon: 'ph-flag' }
+        ]
+      },
+      {
+        id: 111,
+        owner: 'authstack',
+        name: 'oauth-proxy',
+        description: 'OAuth2 proxy for microservices. Handles token refresh, session management, and multi-provider support.',
+        language: 'go',
+        stars: 4567,
+        starDelta: 345,
+        forks: 267,
+        topics: ['oauth', 'authentication', 'microservices', 'security'],
+        category: 'infra',
+        oppType: 'bounty',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=oauth-proxy',
+        healthScore: 77,
+        activity: [5,6,7,5,6,7,5,6,7,5,6,7,5,6,7,5,6,7,5,6,7,5,6,7,5,6,7,5,6,7],
+        signals: [
+          { type: 'positive', icon: 'ph-currency-circle-dollar', text: '$150 bounty for OIDC support' },
+          { type: 'positive', icon: 'ph-shield-check', text: 'Security-focused maintainer team' },
+          { type: 'warning', icon: 'ph-clock', text: 'Bi-weekly release schedule' },
+          { type: 'neutral', icon: 'ph-file-text', text: 'RFC drafts available for review' }
+        ],
+        busFactor: 4,
+        forkOpportunity: 'Security-critical project with active bounty program. High-impact contributions valued and rewarded.',
+        forkTags: ['bounty', 'security', 'high-impact', 'oidc'],
+        opportunityPitch: '$150 bounty for OIDC support. Security-focused team that values quality contributions. Your work here protects authentication for thousands of microservices.',
+        issues: [
+          { num: 156, title: 'Implement OIDC Discovery endpoint', difficulty: 'hard', time: '$150 bounty', labels: ['bounty', 'oidc', 'core'], url: '#' },
+          { num: 162, title: 'Add PKCE support for public clients', difficulty: 'medium', time: '2-3 days', labels: ['security', 'enhancement'], url: '#' },
+          { num: 168, title: 'Fix token refresh race condition', difficulty: 'medium', time: '1-2 days', labels: ['bug', 'security'], url: '#' }
+        ],
+        contributionGuide: [
+          { step: 1, title: 'Fork and clone', detail: 'git clone your-fork && cd oauth-proxy', icon: 'ph-git-fork' },
+          { step: 2, title: 'Read security docs', detail: 'SECURITY.md has contribution guidelines', icon: 'ph-shield-check' },
+          { step: 3, title: 'Build and test', detail: 'go build ./... && go test ./...', icon: 'ph-hammer' },
+          { step: 4, title: 'Claim bounty', detail: 'Comment on issue, wait for assignment', icon: 'ph-currency-circle-dollar' }
+        ]
+      },
+      {
+        id: 112,
+        owner: 'staticgen',
+        name: 'ssg-framework',
+        description: 'Static site generator with edge deployment. Incremental builds, ISR support, and automatic image optimization.',
+        language: 'typescript',
+        stars: 7891,
+        starDelta: 567,
+        forks: 423,
+        topics: ['static-site', 'jamstack', 'edge', 'typescript'],
+        category: 'web',
+        oppType: 'firstpr',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=ssg-framework',
+        healthScore: 82,
+        activity: [7,8,6,9,7,8,6,9,7,8,6,9,7,8,6,9,7,8,6,9,7,8,6,9,7,8,6,9,7,8],
+        signals: [
+          { type: 'positive', icon: 'ph-hand-waving', text: '20 issues labeled good-first-issue' },
+          { type: 'positive', icon: 'ph-users', text: '500+ contributors' },
+          { type: 'positive', icon: 'ph-book-open', text: 'Excellent documentation and examples' },
+          { type: 'warning', icon: 'ph-issue', text: 'Complex build system may deter newcomers' }
+        ],
+        busFactor: 6,
+        forkOpportunity: 'Well-established project with strong community. Great for learning modern web tooling internals.',
+        forkTags: ['good-first-issue', 'well-documented', 'web-tooling', 'community'],
+        opportunityPitch: '500+ contributors and 20 good-first-issue labels. The community is massive and welcoming. Complex build system means high-value contributions get noticed fast.',
+        issues: [
+          { num: 401, title: 'Add content collections API', difficulty: 'medium', time: '2-3 days', labels: ['good-first-issue', 'api'], url: '#' },
+          { num: 408, title: 'Fix ISR cache invalidation on deploy', difficulty: 'hard', time: '3-5 days', labels: ['bug', 'core'], url: '#' },
+          { num: 415, title: 'Improve error messages for config validation', difficulty: 'easy', time: '2-3 hours', labels: ['good-first-issue', 'dx'], url: '#' },
+          { num: 420, title: 'Add Tailwind v4 plugin', difficulty: 'medium', time: '1-2 days', labels: ['plugin', 'enhancement'], url: '#' }
+        ],
+        contributionGuide: [
+          { step: 1, title: 'Fork and clone', detail: 'git clone your-fork && cd ssg-framework', icon: 'ph-git-fork' },
+          { step: 2, title: 'Install', detail: 'pnpm install', icon: 'ph-package' },
+          { step: 3, title: 'Run dev', detail: 'pnpm dev', icon: 'ph-play' },
+          { step: 4, title: 'Read CONTRIBUTING.md', detail: 'Detailed guide for first-time contributors', icon: 'ph-book-open' }
+        ]
+      },
+      {
+        id: 113,
+        owner: 'Leonxlnx',
+        name: 'taste-skill',
+        description: 'Opinionated design guidelines, instruction files, and anti-slop rules to improve the aesthetic quality of AI-generated frontends.',
+        language: 'markdown',
+        stars: 12560,
+        starDelta: 2432,
+        forks: 812,
+        topics: ['design-system', 'anti-slop', 'frontend', 'ai-instructions'],
+        category: 'web',
+        oppType: 'design',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=taste-skill',
+        healthScore: 92,
+        activity: [7, 9, 8, 12, 10, 11, 9, 8, 7, 10, 14, 12, 11, 9, 13, 10, 11, 8, 9, 7, 12, 10, 14, 11, 9, 13, 12, 11, 9, 10],
+        signals: [
+          { type: 'positive', icon: 'ph-trend-up', text: 'Viral growth, featured on GitHub Trending' },
+          { type: 'positive', icon: 'ph-paint-brush', text: 'Clear contribution instructions for designer-coders' },
+          { type: 'warning', icon: 'ph-warning', text: 'Needs clean CSS / Tailwind v4 specific skill manuals' },
+          { type: 'neutral', icon: 'ph-globe', text: 'Used across 2,000+ active workspaces' }
+        ],
+        busFactor: 4,
+        forkOpportunity: 'Contribute clean, detailed skill manuals for modern frontend stacks (e.g. Tailwind v4, Motion, fluid typography).',
+        forkTags: ['documentation', 'design-system', 'tailwind-v4', 'markdown'],
+        opportunityPitch: 'This project is single-handedly redefining how developers steer AI design, yet it lacks comprehensive manuals for Tailwind v4 and fluid typography. Contributing these puts your design-engineering skills in front of thousands of top-tier builders.',
+        opportunityGap: 'The library lacks dedicated anti-slop rules and implementation guidelines for modern CSS utility libraries like Tailwind v4. The documentation is currently open for community blueprints.',
+        opportunityTargetAreas: 'Create a new skill folder under `.agents/skills/tailwind-v4/SKILL.md` detailing display font-sizes, vertical height safeguards, and scrollbar refractions.',
+        opportunityROI: 'Establish yourself as a key authority in prompt engineering and modern design systems. Your manual will be read by AI coding agents across the global tech community.',
+        issues: [
+          { num: 45, title: 'Write a comprehensive skill manual for Tailwind v4 best practices', difficulty: 'medium', time: '1-2 days', labels: ['skills', 'tailwind-v4'], url: '#' },
+          { num: 52, title: 'Design elegant templates for image-to-code wireframes', difficulty: 'easy', time: '4-6 hours', labels: ['design', 'good-first-issue'], url: '#' },
+          { num: 58, title: 'Create interactive HTML/CSS visualization tool for the Three Dials', difficulty: 'hard', time: '3-5 days', labels: ['creative-coding', 'js'], url: '#' }
+        ],
+        contributionGuide: [
+          { step: 1, title: 'Fork and clone', detail: 'git clone your-fork && cd taste-skill', icon: 'ph-git-fork' },
+          { step: 2, title: 'Review open PRs', detail: 'Check the #skills channel on community platforms', icon: 'ph-chat-circle' },
+          { step: 3, title: 'Draft your manual', detail: 'Create SKILL.md under your target stack folder', icon: 'ph-note' },
+          { step: 4, title: 'Submit pull request', detail: 'Submit with description of the design metrics solved', icon: 'ph-git-pull-request' }
+        ]
+      },
+      {
+        id: 114,
+        owner: 'tailwind-deck',
+        name: 'core',
+        description: 'Modern Tailwind v4 React components with premium aesthetics, micro-interactions, and built-in HSL color token system.',
+        language: 'typescript',
+        stars: 8321,
+        starDelta: 943,
+        forks: 412,
+        topics: ['tailwind', 'react', 'ui-components', 'design-system'],
+        category: 'web',
+        oppType: 'design',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=core',
+        healthScore: 84,
+        activity: [5, 6, 7, 5, 8, 9, 6, 7, 5, 8, 7, 6, 8, 7, 9, 6, 7, 8, 5, 6, 8, 7, 9, 8, 6, 7, 9, 8, 7, 8],
+        signals: [
+          { type: 'positive', icon: 'ph-sparkles', text: 'Highly praised aesthetic foundation' },
+          { type: 'warning', icon: 'ph-palette', text: 'Dark mode contrast transitions are uncalibrated' },
+          { type: 'warning', icon: 'ph-device-mobile', text: 'Layout shifts observed on responsive mobile header' },
+          { type: 'neutral', icon: 'ph-hand-pointing', text: 'Built on Tailwind v4 CSS layer rules' }
+        ],
+        busFactor: 3,
+        forkOpportunity: 'Help refactor core components to Tailwind v4, add sleek micro-animations, and implement a consistent dark mode theme.',
+        forkTags: ['design-system', 'tailwind-v4', 'micro-animations', 'typescript'],
+        opportunityPitch: 'A highly functional competitor to shadcn/ui that lacks premium, fluid visual refinement. Injecting double-border refraction styling, responsive grid scaling, and clip-path transitions here will instantly make this a top-tier designer tool.',
+        opportunityGap: 'Responsive navigation menu collapses awkwardly on viewports below 480px, causing significant layout shift. In addition, the dark-mode layout transitions are currently abrupt.',
+        opportunityTargetAreas: 'Refactor `src/components/layout/Navbar.tsx` responsive classes and implement a spring-based dark mode toggle in `src/components/theme/ThemeToggle.tsx`.',
+        opportunityROI: 'Enhance your portfolio with highly-polished, state-of-the-art interactive components. Showcase advanced responsive engineering and spring-physics easing curves.',
+        issues: [
+          { num: 45, title: 'Design & implement interactive glassmorphic dashboard sidebar', difficulty: 'medium', time: '1-2 days', labels: ['design', 'tailwind-v4', 'good-first-issue'], url: '#' },
+          { num: 48, title: 'Add layout transitions for the multi-step multi-select wizard', difficulty: 'medium', time: '2-3 days', labels: ['design', 'framer-motion'], url: '#' },
+          { num: 52, title: 'Implement dark mode toggle transition effect using CSS clip-path', difficulty: 'easy', time: '4-6 hours', labels: ['design', 'good-first-issue'], url: '#' }
+        ],
+        contributionGuide: [
+          { step: 1, title: 'Fork and clone', detail: 'git clone your-fork && cd core', icon: 'ph-git-fork' },
+          { step: 2, title: 'Install and run storyboard', detail: 'npm install && npm run storybook', icon: 'ph-package' },
+          { step: 3, title: 'Pick a styling issue', detail: 'Start with issues labeled design or good-first-issue', icon: 'ph-flag' },
+          { step: 4, title: 'Test responsive grids', detail: 'Ensure viewport stability from 320px to 4k', icon: 'ph-device-mobile' }
+        ]
+      },
+      {
+        id: 115,
+        owner: 'glassmorphism',
+        name: 'charts',
+        description: 'Modern SVG and Canvas charting library with fluid animations, glowing gradients, and accessible tooltips.',
+        language: 'typescript',
+        stars: 5612,
+        starDelta: 532,
+        forks: 289,
+        topics: ['charts', 'svg', 'canvas', 'web-design', 'visualization'],
+        category: 'web',
+        oppType: 'design',
+        avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=charts',
+        healthScore: 79,
+        activity: [3, 4, 2, 5, 4, 3, 6, 5, 4, 7, 5, 4, 3, 6, 5, 7, 4, 5, 6, 5, 4, 7, 6, 5, 8, 4, 6, 5, 7, 6],
+        signals: [
+          { type: 'positive', icon: 'ph-chart-bar', text: 'Exceptionally fast render times via HTML5 Canvas' },
+          { type: 'warning', icon: 'ph-eye-closed', text: 'Screen-reader (a11y) contrast issues open' },
+          { type: 'warning', icon: 'ph-gradient', text: 'Lacks modern neon radial gradients' },
+          { type: 'neutral', icon: 'ph-users-three', text: 'Active team of 3 main developers' }
+        ],
+        busFactor: 4,
+        forkOpportunity: 'Improve visual aesthetics by adding hover state transformations, premium glowing line gradients, and resolving contrast issues.',
+        forkTags: ['charts', 'svg', 'accessibility', 'glowing-gradients'],
+        opportunityPitch: 'Help solo builders present data beautifully. The library renders incredibly fast, but tooltips and interactive hover effects lack visual depth. Adding neon radial glows and fluid transitions will immediately elevate thousands of analytical dashboards.',
+        opportunityGap: 'Bar heights jump statically when dataset shifts, instead of executing spring-based transitions. Hover states on line charts lack a subtle glowing backdrop gradient.',
+        opportunityTargetAreas: 'Edit `src/renderer/svg/BarRenderer.ts` and `src/components/tooltip/TooltipOverlay.tsx` to add radial gradient support and CSS ease-out styling.',
+        opportunityROI: 'Master mathematical SVG coordinates and canvas rendering. Showcase complex mathematical animations combined with premium user experience polish.',
+        issues: [
+          { num: 124, title: 'Add glowing radial gradient background behind line charts on hover', difficulty: 'easy', time: '4-6 hours', labels: ['design', 'svg', 'good-first-issue'], url: '#' },
+          { num: 131, title: 'Create smooth elastic bar height transitions on data changes', difficulty: 'medium', time: '1-2 days', labels: ['design', 'animation'], url: '#' },
+          { num: 138, title: 'Resolve contrast ratios for dark/light mode tooltip text (a11y)', difficulty: 'easy', time: '2-3 hours', labels: ['accessibility', 'good-first-issue'], url: '#' }
+        ],
+        contributionGuide: [
+          { step: 1, title: 'Fork and clone', detail: 'git clone your-fork && cd charts', icon: 'ph-git-fork' },
+          { step: 2, title: 'Install and run dev server', detail: 'pnpm install && pnpm dev', icon: 'ph-package' },
+          { step: 3, title: 'Review Figma spec in README', detail: 'Review target design for tooltip visual layouts', icon: 'ph-figma-logo' },
+          { step: 4, title: 'Test contrast', detail: 'Verify tooltip readability with color contrast tools', icon: 'ph-shield-check' }
+        ]
+      }
+    ];
+
+    // ==========================================
+    // STATE MANAGEMENT
+    // ==========================================
+
+    let currentPage = 'trending';
+    let currentCategory = 'all';
+    let currentTimeRange = 'today';
+    let searchQuery = '';
+    let currentOppType = 'all';
+    let isLoading = false;
+
+    // Charting instances & global active repository tracker
+    let currentActiveRepo = null;
+    let chartStarVelocity = null;
+    let chartCommitVitality = null;
+    let chartIssueFriction = null;
+
+    // ==========================================
+    // THEME MANAGEMENT
+    // ==========================================
+
+    function initTheme() {
+      const saved = localStorage.getItem('theme');
+      if (saved === 'light') {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+        updateThemeIcons(false);
+      } else {
+        document.documentElement.classList.remove('light');
+        document.documentElement.classList.add('dark');
+        updateThemeIcons(true);
+      }
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.contains('dark');
+      if (isDark) {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+        localStorage.setItem('theme', 'light');
+        updateThemeIcons(false);
+      } else {
+        document.documentElement.classList.remove('light');
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+        updateThemeIcons(true);
+      }
+
+      // If viewing repository details, dynamically re-render the charts to match the new theme
+      const detailPage = document.getElementById('page-opp-detail');
+      if (detailPage && !detailPage.classList.contains('hidden') && currentActiveRepo) {
+        renderRepositoryCharts(currentActiveRepo);
+      }
+    }
+
+    function updateThemeIcons(isDark) {
+      document.getElementById('theme-icon-dark').classList.toggle('hidden', !isDark);
+      document.getElementById('theme-icon-light').classList.toggle('hidden', isDark);
+    }
+
+    // ==========================================
+    // PAGE NAVIGATION
+    // ==========================================
+
+    // ==========================================
+    // ROUTING ENGINE (Hash Router)
+    // ==========================================
+
+    function handleRouting() {
+      const hash = window.location.hash || '#/trending';
+      
+      if (hash.startsWith('#/opportunity/')) {
+        const parts = hash.split('/');
+        const param = parts[2];
+        let repo = null;
+        
+        // Try to parse as integer ID first
+        const repoId = parseInt(param);
+        if (!isNaN(repoId)) {
+          repo = opportunityRepos.find(r => r.id === repoId) || trendingRepos.find(r => r.id === repoId);
+        }
+        
+        // If not found by ID, try finding by owner/name
+        if (!repo && parts[3]) {
+          const owner = parts[2].toLowerCase();
+          const name = parts[3].toLowerCase();
+          repo = opportunityRepos.find(r => r.owner.toLowerCase() === owner && r.name.toLowerCase() === name) ||
+                 trendingRepos.find(r => r.owner.toLowerCase() === owner && r.name.toLowerCase() === name);
+        }
+        
+        if (repo) {
+          openDetail(repo.id);
+        } else {
+          window.location.hash = '#/opportunity';
+        }
+      } else if (hash === '#/opportunity') {
+        renderPage('opportunity');
+      } else {
+        renderPage('trending');
+      }
+    }
+
+    function renderPage(page) {
+      currentPage = page;
+
+      const trendingTab = document.getElementById('tab-trending');
+      const opportunityTab = document.getElementById('tab-opportunity');
+      const trendingIndicator = document.getElementById('trending-indicator');
+      const opportunityIndicator = document.getElementById('opportunity-indicator');
+
+      if (page === 'trending') {
+        trendingTab.classList.remove('text-zinc-500', 'dark:text-zinc-400');
+        trendingTab.classList.add('text-gray-900', 'dark:text-dark-text');
+        opportunityTab.classList.remove('text-gray-900', 'dark:text-dark-text');
+        opportunityTab.classList.add('text-zinc-500', 'dark:text-zinc-400');
+        trendingIndicator.classList.remove('hidden');
+        opportunityIndicator.classList.add('hidden');
+      } else {
+        opportunityTab.classList.remove('text-zinc-500', 'dark:text-zinc-400');
+        opportunityTab.classList.add('text-gray-900', 'dark:text-dark-text');
+        trendingTab.classList.remove('text-gray-900', 'dark:text-dark-text');
+        trendingTab.classList.add('text-zinc-500', 'dark:text-zinc-400');
+        opportunityIndicator.classList.remove('hidden');
+        trendingIndicator.classList.add('hidden');
+      }
+
+      document.getElementById('page-trending').classList.toggle('hidden', page !== 'trending');
+      document.getElementById('page-opportunity').classList.toggle('hidden', page !== 'opportunity');
+      document.getElementById('page-opp-detail').classList.add('hidden');
+      document.getElementById('nav-tabs').classList.remove('hidden');
+
+      if (page === 'trending') {
+        renderTrendingPage();
+      } else {
+        renderOpportunityPage();
+      }
+    }
+
+    function switchPage(page) {
+      window.location.hash = `#/${page}`;
+    }
+
+    function goBackFromDetail() {
+      if (currentPage === 'trending') {
+        window.location.hash = '#/trending';
+      } else {
+        window.location.hash = '#/opportunity';
+      }
+    }
+
+    // ==========================================
+    // TRENDING PAGE LOGIC
+    // ==========================================
+
+    function filterCategory(category) {
+      currentCategory = category;
+      document.querySelectorAll('.category-pill').forEach(pill => {
+        if (pill.dataset.category === category) {
+          pill.classList.add('active');
+        } else {
+          pill.classList.remove('active');
+        }
+      });
+      renderTrendingGrid();
+    }
+
+    function setTimeRange(range) {
+      currentTimeRange = range;
+      document.querySelectorAll('.time-btn').forEach(btn => {
+        if (btn.dataset.range === range) {
+          btn.classList.add('bg-accent', 'text-white');
+          btn.classList.remove('text-zinc-500', 'dark:text-zinc-400');
+        } else {
+          btn.classList.remove('bg-accent', 'text-white');
+          btn.classList.add('text-zinc-500', 'dark:text-zinc-400');
+        }
+      });
+      renderTrendingGrid();
+    }
+
+    function applyFilters() {
+      searchQuery = document.getElementById('search-input').value.toLowerCase();
+      renderTrendingGrid();
+    }
+
+    function getFilteredTrendingRepos() {
+      return trendingRepos.filter(repo => {
+        if (currentCategory !== 'all' && repo.category !== currentCategory) return false;
+        const langFilter = document.getElementById('language-filter').value;
+        if (langFilter && repo.language !== langFilter) return false;
+        if (searchQuery) {
+          const searchStr = `${repo.owner} ${repo.name} ${repo.description} ${repo.topics.join(' ')}`.toLowerCase();
+          if (!searchStr.includes(searchQuery)) return false;
+        }
+        return true;
+      });
+    }
+
+    function renderTrendingPage() {
+      showLoading('loading-state');
+      hideAll('trending-grid', 'empty-state');
+      setTimeout(() => renderTrendingGrid(), 500);
+    }
+
+    function renderTrendingGrid() {
+      const grid = document.getElementById('trending-grid');
+      const loading = document.getElementById('loading-state');
+      const empty = document.getElementById('empty-state');
+
+      loading.classList.add('hidden');
+      const repos = getFilteredTrendingRepos();
+
+      if (repos.length === 0) {
+        grid.classList.add('hidden');
+        empty.classList.remove('hidden');
+        return;
+      }
+
+      empty.classList.add('hidden');
+      grid.classList.remove('hidden');
+      grid.innerHTML = repos.map(repo => createRepoCard(repo)).join('');
+    }
+
+    // ==========================================
+    // OPPORTUNITY PAGE LOGIC
+    // ==========================================
+
+    function selectOpportunityType(type) {
+      currentOppType = type;
+      document.querySelectorAll('.opp-type-card').forEach(card => {
+        if (card.dataset.opp === type) {
+          card.classList.add('selected');
+        } else {
+          card.classList.remove('selected');
+        }
+      });
+      renderOpportunityGrid();
+    }
+
+    function getFilteredOpportunityRepos() {
+      if (currentOppType === 'all') return opportunityRepos;
+      return opportunityRepos.filter(repo => repo.oppType === currentOppType);
+    }
+
+    function renderOpportunityPage() {
+      showLoading('opp-loading-state');
+      hideAll('opportunity-grid', 'opp-empty-state');
+      setTimeout(() => renderOpportunityGrid(), 500);
+    }
+
+    function renderOpportunityGrid() {
+      const grid = document.getElementById('opportunity-grid');
+      const loading = document.getElementById('opp-loading-state');
+      const empty = document.getElementById('opp-empty-state');
+
+      loading.classList.add('hidden');
+      const repos = getFilteredOpportunityRepos();
+
+      if (repos.length === 0) {
+        grid.classList.add('hidden');
+        empty.classList.remove('hidden');
+        return;
+      }
+
+      empty.classList.add('hidden');
+      grid.classList.remove('hidden');
+      grid.innerHTML = repos.map(repo => createRepoCard(repo, true)).join('');
+    }
+
+    function navigateToDetail(repoId) {
+      const repo = opportunityRepos.find(r => r.id === repoId) || trendingRepos.find(r => r.id === repoId);
+      if (repo) {
+        window.location.hash = `#/opportunity/${repo.owner}/${repo.name}`;
+      } else {
+        window.location.hash = `#/opportunity/${repoId}`;
+      }
+    }
+
+    // ==========================================
+    // CARD RENDERING
+    // ==========================================
+
+    function createRepoCard(repo, showBadge = false) {
+      const badgeHtml = showBadge ? getOpportunityBadge(repo.oppType) : '';
+      const clickFn = `navigateToDetail(${repo.id})`;
+
+      return `
+        <div class="repo-card p-4 rounded-card border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface cursor-pointer" onclick="${clickFn}">
+          <div class="flex gap-3 mb-3">
+            <img src="${repo.avatar}" alt="${repo.owner}/${repo.name}" class="w-10 h-10 rounded-lg bg-gray-50 dark:bg-dark-bg">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-dark-text truncate">${repo.owner}/${repo.name}</h3>
+                ${badgeHtml}
+              </div>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400">${repo.description.substring(0, 50)}${repo.description.length > 50 ? '...' : ''}</p>
+            </div>
+          </div>
+          <p class="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2 mb-3">${repo.description}</p>
+          <div class="flex flex-wrap gap-1.5 mb-3">
+            ${repo.topics.slice(0, 4).map(topic => `
+              <span class="px-2 py-0.5 text-xs rounded-pill bg-gray-50 dark:bg-dark-bg text-zinc-600 dark:text-zinc-400 border border-gray-200 dark:border-dark-border">${topic}</span>
+            `).join('')}
+          </div>
+          <div class="flex items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400">
+            <span class="flex items-center gap-1">
+              <i class="ph ph-star text-yellow-500"></i>
+              <span class="font-mono">${formatNumber(repo.stars)}</span>
+            </span>
+            <span class="flex items-center gap-1 text-green-500">
+              <i class="ph ph-trend-up"></i>
+              <span class="font-mono">+${formatNumber(repo.starDelta)}</span>
+            </span>
+            <span class="flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-${getLanguageColor(repo.language)}"></span>
+              <span>${repo.language}</span>
+            </span>
+            <span class="flex items-center gap-1">
+              <i class="ph ph-git-fork"></i>
+              <span class="font-mono">${formatNumber(repo.forks)}</span>
+            </span>
+          </div>
+        </div>
+      `;
+    }
+
+    function getOpportunityBadge(type) {
+      const badges = {
+        rising: '<span class="badge bg-green-500/20 text-green-500">Rising</span>',
+        bounty: '<span class="badge bg-accent/20 text-accent">Bounty</span>',
+        abandoned: '<span class="badge bg-amber-500/20 text-amber-500">Abandoned</span>',
+        firstpr: '<span class="badge bg-green-500/20 text-green-500">Good First Issue</span>',
+        design: '<span class="badge bg-purple-500/20 text-purple-500">Design Polish</span>'
+      };
+      return badges[type] || '';
+    }
+
+    function getLanguageColor(lang) {
+      const colors = {
+        python: 'blue-400',
+        javascript: 'yellow-400',
+        typescript: 'blue-500',
+        rust: 'orange-500',
+        go: 'cyan-400',
+        java: 'red-400',
+        cpp: 'purple-400',
+        swift: 'orange-400',
+        dart: 'blue-400',
+        yaml: 'pink-400',
+        css: 'purple-500',
+        html: 'orange-500',
+        markdown: 'emerald-500'
+      };
+      return colors[lang] || 'zinc-400';
+    }
+
+    function formatNumber(num) {
+      if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+      return num.toString();
+    }
+
+    // ==========================================
+    // OPPORTUNITY DETAIL PAGE
+    // ==========================================
+
+    function openDetail(repoId) {
+      const repo = opportunityRepos.find(r => r.id === repoId) || trendingRepos.find(r => r.id === repoId);
+      if (!repo) return;
+
+      // Hide other lists, show detail page
+      document.getElementById('page-opportunity').classList.add('hidden');
+      document.getElementById('page-trending').classList.add('hidden');
+      document.getElementById('page-opp-detail').classList.remove('hidden');
+      document.getElementById('nav-tabs').classList.add('hidden');
+
+      // Header
+      document.getElementById('detail-avatar').src = repo.avatar;
+      document.getElementById('detail-avatar').alt = `${repo.owner}/${repo.name}`;
+      document.getElementById('detail-repo-name').textContent = `${repo.owner}/${repo.name}`;
+      document.getElementById('detail-badge').innerHTML = getOpportunityBadge(repo.oppType);
+
+      // Meta line (stars · forks · language · license)
+      document.getElementById('detail-meta').innerHTML = `
+        <span class="flex items-center gap-1"><i class="ph ph-star text-yellow-500"></i>${formatNumber(repo.stars)}</span>
+        <span class="flex items-center gap-1"><i class="ph ph-git-fork"></i>${formatNumber(repo.forks)}</span>
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-${getLanguageColor(repo.language)}"></span>${repo.language}</span>
+        <span>${repo.description.substring(0, 80)}${repo.description.length > 80 ? '...' : ''}</span>
+      `;
+
+      // GitHub link
+      document.getElementById('detail-github-link').href = `https://github.com/${repo.owner}/${repo.name}`;
+
+      // ★ OPPORTUNITY SPOTLIGHT CONTAINER STYLING & POPULATING
+      const spotlightBox = document.getElementById('detail-spotlight-box');
+      const iconWrap = document.getElementById('detail-spotlight-icon-wrapper');
+      const icon = document.getElementById('detail-spotlight-icon');
+      const label = document.getElementById('detail-spotlight-label');
+      
+      const typeStyles = {
+        rising: {
+          border: 'border-green-500/30',
+          bg: 'bg-green-500/5',
+          iconBg: 'bg-green-500/20',
+          iconColor: 'text-green-500',
+          label: 'Rising Star Spotlight',
+          iconClass: 'ph-trend-up'
+        },
+        bounty: {
+          border: 'border-indigo-500/30',
+          bg: 'bg-indigo-500/5',
+          iconBg: 'bg-indigo-500/20',
+          iconColor: 'text-indigo-500',
+          label: 'Issue Bounty Spotlight',
+          iconClass: 'ph-currency-circle-dollar'
+        },
+        abandoned: {
+          border: 'border-amber-500/30',
+          bg: 'bg-amber-500/5',
+          iconBg: 'bg-amber-500/20',
+          iconColor: 'text-amber-500',
+          label: 'Abandoned Gold Spotlight',
+          iconClass: 'ph-archive'
+        },
+        firstpr: {
+          border: 'border-emerald-500/30',
+          bg: 'bg-emerald-500/5',
+          iconBg: 'bg-emerald-500/20',
+          iconColor: 'text-emerald-500',
+          label: 'First PR Friendly Spotlight',
+          iconClass: 'ph-hand-waving'
+        },
+        design: {
+          border: 'border-purple-500/30',
+          bg: 'bg-purple-500/5',
+          iconBg: 'bg-purple-500/20',
+          iconColor: 'text-purple-500',
+          label: 'Design Polish Spotlight',
+          iconClass: 'ph-paint-brush-broad'
+        }
+      };
+
+      const style = typeStyles[repo.oppType] || typeStyles.rising;
+      spotlightBox.className = `rounded-card p-6 md:p-8 mb-6 border ${style.border} ${style.bg} transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]`;
+      iconWrap.className = `w-8 h-8 rounded-lg ${style.iconBg} flex items-center justify-center animate-pulse`;
+      icon.className = `ph ${style.iconClass} text-base ${style.iconColor}`;
+      label.textContent = style.label;
+      label.className = `text-xs font-semibold uppercase tracking-wider ${style.iconColor}`;
+
+      // Populate text nodes with SaaS-focused value propositions
+      document.getElementById('detail-pitch').textContent = repo.opportunityPitch || repo.forkOpportunity;
+      document.getElementById('detail-gap-text').textContent = repo.opportunityGap || 'The core codebase is currently extremely difficult to host and lacks key customer-facing features like integrated Auth, Stripe billing flows, or collaboration dashboards. Users are actively begging for a managed cloud instance.';
+      document.getElementById('detail-target-text').textContent = repo.opportunityTargetAreas || 'Launch a hosted cloud-managed solution, simplify docker scripting, or wrap the terminal CLI tool in a gorgeous web GUI dashboard.';
+      document.getElementById('detail-roi-text').textContent = repo.opportunityROI || 'Build a steady stream of monthly recurring revenue (MRR). By resolving hosting friction, you can capture an active audience of technical users willing to pay for convenience.';
+
+      // Opportunity Breakdown Grid
+      const breakdown = document.getElementById('detail-opportunity-breakdown');
+      const opps = getOpportunityBreakdown(repo);
+      breakdown.innerHTML = opps.map(opp => `
+        <div class="p-4 rounded-card border border-gray-200/60 dark:border-dark-border/60 bg-white/60 dark:bg-dark-surface/60 backdrop-blur-sm">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-base">${opp.emoji}</span>
+            <h4 class="text-sm font-medium text-gray-900 dark:text-dark-text">${opp.title}</h4>
+          </div>
+          <p class="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed mb-3">${opp.description}</p>
+          <div class="flex items-center gap-2">
+            <span class="badge diff-${opp.difficulty}">${opp.difficulty}</span>
+            <span class="text-xs text-zinc-500 dark:text-zinc-400 font-mono">${opp.time}</span>
+          </div>
+        </div>
+      `).join('');
+
+      // Quick Action Bar
+      const actionBar = document.getElementById('detail-action-bar');
+      const actions = getQuickActions(repo);
+      actionBar.innerHTML = actions.map(action => `
+        <a href="${action.url}" target="_blank" rel="noopener" class="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-small ${action.primary ? 'bg-accent text-white hover:bg-accent/90' : 'bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text border border-gray-200 dark:border-dark-border hover:border-accent'} transition-colors">
+          <i class="ph ${action.icon}"></i>
+          ${action.label}
+        </a>
+      `).join('');
+
+      // Topics
+      document.getElementById('detail-topics').innerHTML = repo.topics.map(topic =>
+        `<span class="px-2 py-0.5 text-xs rounded-pill bg-gray-50 dark:bg-dark-bg text-zinc-600 dark:text-zinc-400 border border-gray-200 dark:border-dark-border">${topic}</span>`
+      ).join('');
+
+      // Quick Stats
+      document.getElementById('detail-stars').textContent = formatNumber(repo.stars);
+      document.getElementById('detail-star-delta').textContent = `+${formatNumber(repo.starDelta)}`;
+      document.getElementById('detail-health').textContent = repo.healthScore || '--';
+      document.getElementById('detail-health-label').textContent = repo.healthScore ? getHealthLabel(repo.healthScore) : 'N/A';
+      document.getElementById('detail-forks').textContent = formatNumber(repo.forks);
+
+      // Bus Factor
+      const busEl = document.getElementById('detail-bus');
+      busEl.textContent = repo.busFactor !== undefined ? repo.busFactor : '--';
+      busEl.className = `text-2xl font-mono font-semibold ${getBusColor(repo.busFactor)}`;
+      document.getElementById('detail-bus-label').textContent = repo.busFactor !== undefined ? getBusLabel(repo.busFactor) : 'N/A';
+
+      // Render Trend & Vitality Intelligence Dashboard Charts (ApexCharts)
+      renderRepositoryCharts(repo);
+
+      // Signals
+      if (repo.signals && repo.signals.length > 0) {
+        document.getElementById('detail-signals-section').classList.remove('hidden');
+        document.getElementById('detail-signals').innerHTML = repo.signals.map(signal => `
+          <div class="signal-${signal.type} p-3 rounded-card border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface">
+            <div class="flex items-center gap-3">
+              <i class="ph ${signal.icon} text-base ${getSignalColor(signal.type)}"></i>
+              <span class="text-sm text-gray-900 dark:text-dark-text">${signal.text}</span>
+            </div>
+          </div>
+        `).join('');
+      } else {
+        document.getElementById('detail-signals-section').classList.add('hidden');
+      }
+
+      // Issues
+      if (repo.issues && repo.issues.length > 0) {
+        document.getElementById('detail-issues-section').classList.remove('hidden');
+        document.getElementById('detail-issues').innerHTML = repo.issues.map(issue => `
+          <div class="issue-card p-4 rounded-card border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface ${issue.labels.includes('urgent') || issue.labels.includes('critical') ? 'pulse-urgent' : ''}">
+            <div class="flex items-start justify-between gap-3 mb-2">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="font-mono text-xs text-zinc-500 dark:text-zinc-400">#${issue.num}</span>
+                  <h4 class="text-sm font-medium text-gray-900 dark:text-dark-text">${issue.title}</h4>
+                </div>
+                <div class="flex flex-wrap gap-1.5">
+                  ${issue.labels.map(label => `
+                    <span class="px-2 py-0.5 text-xs rounded-pill bg-gray-100 dark:bg-dark-bg text-zinc-600 dark:text-zinc-400 border border-gray-200 dark:border-dark-border">${label}</span>
+                  `).join('')}
+                </div>
+              </div>
+              <div class="flex flex-col items-end gap-1 flex-shrink-0">
+                <span class="badge diff-${issue.difficulty}">${issue.difficulty}</span>
+                <span class="text-xs text-zinc-500 dark:text-zinc-400 font-mono">${issue.time}</span>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      } else {
+        document.getElementById('detail-issues-section').classList.add('hidden');
+      }
+
+      // Contribution Guide
+      if (repo.contributionGuide && repo.contributionGuide.length > 0) {
+        document.getElementById('detail-guide-section').classList.remove('hidden');
+        document.getElementById('detail-guide').innerHTML = repo.contributionGuide.map((step, idx) => `
+          <div class="step-connector flex gap-4 pb-6">
+            <div class="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+              <i class="ph ${step.icon} text-base text-accent"></i>
+            </div>
+            <div class="flex-1 pt-1">
+              <h4 class="text-sm font-medium text-gray-900 dark:text-dark-text mb-1">Step ${step.step}: ${step.title}</h4>
+              <p class="text-xs font-mono text-zinc-500 dark:text-zinc-400 bg-gray-50 dark:bg-dark-bg px-3 py-2 rounded-small border border-gray-200 dark:border-dark-border">${step.detail}</p>
+            </div>
+          </div>
+        `).join('');
+      } else {
+        document.getElementById('detail-guide-section').classList.add('hidden');
+      }
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function getOpportunityBreakdown(repo) {
+      const opps = [];
+      const type = repo.oppType;
+
+      if (type === 'rising') {
+        opps.push({
+          emoji: '🚀', title: 'Early Contributor Advantage',
+          description: 'Shape the architecture before it gets locked in. Early contributors become core maintainers.',
+          difficulty: 'medium', time: 'Long-term ROI'
+        });
+        opps.push({
+          emoji: '📈', title: 'Growing Community',
+          description: `${formatNumber(repo.stars)} stars with ${repo.starDelta > 500 ? 'rapid' : 'steady'} growth. Your contributions get maximum visibility.`,
+          difficulty: 'easy', time: 'Visibility boost'
+        });
+        opps.push({
+          emoji: '🔧', title: 'Open Architecture Decisions',
+          description: 'Key design decisions are still being made. Your input on RFCs and issues has real weight.',
+          difficulty: 'hard', time: 'High impact'
+        });
+      } else if (type === 'bounty') {
+        const bountyIssues = (repo.issues || []).filter(i => i.labels.includes('bounty'));
+        const totalBounty = bountyIssues.reduce((sum, i) => {
+          const match = i.time.match(/\$(\d+)/);
+          return sum + (match ? parseInt(match[1]) : 0);
+        }, 0);
+        opps.push({
+          emoji: '💰', title: `${totalBounty > 0 ? '$' + totalBounty + ' in' : 'Active'} Bounties`,
+          description: bountyIssues.length > 0 ? `Issues: ${bountyIssues.map(i => '#' + i.num).join(', ')}. Claim before starting work.` : 'Active bounty program with rewards for quality contributions.',
+          difficulty: 'medium', time: `${bountyIssues.length} bounties`
+        });
+        opps.push({
+          emoji: '🧪', title: 'Skill Building',
+          description: `Real-world ${repo.language} codebase used in production. Learn from battle-tested patterns.`,
+          difficulty: 'easy', time: 'Learning value'
+        });
+        opps.push({
+          emoji: '🌐', title: 'Enterprise Exposure',
+          description: 'Contributions to infrastructure repos get seen by companies using them. Career leverage.',
+          difficulty: 'medium', time: 'Career ROI'
+        });
+      } else if (type === 'abandoned') {
+        opps.push({
+          emoji: '👑', title: 'Become the Maintainer',
+          description: `With ${formatNumber(repo.stars)} stars and zero active maintainers, a fork by YOU becomes the de facto version.`,
+          difficulty: 'hard', time: 'Community leadership'
+        });
+        opps.push({
+          emoji: '🐛', title: 'Fix Critical Issues',
+          description: 'Security patches and bugs pile up when nobody is minding the store. Quick wins available.',
+          difficulty: 'medium', time: '1-2 days each'
+        });
+        opps.push({
+          emoji: '📦', title: 'Merge Unmerged PRs',
+          description: 'Dozens of community PRs with improvements sit unreviewed. Cherry-pick the best ones.',
+          difficulty: 'easy', time: 'Quick wins'
+        });
+      } else if (type === 'firstpr') {
+        opps.push({
+          emoji: '👋', title: 'Beginner-Friendly Issues',
+          description: `${(repo.issues || []).filter(i => i.labels.some(l => l.includes('good-first') || l.includes('first-timer'))).length} issues explicitly labeled for newcomers. Clear scope, guided by maintainers.`,
+          difficulty: 'easy', time: '2-4 hours each'
+        });
+        opps.push({
+          emoji: '🤝', title: 'Active Mentorship',
+          description: 'Responsive maintainers who review PRs quickly and provide constructive feedback.',
+          difficulty: 'easy', time: 'Support available'
+        });
+        opps.push({
+          emoji: '📝', title: 'Documentation Wins',
+          description: 'Doc improvements are always welcome and get merged fastest. Low risk, high visibility.',
+          difficulty: 'easy', time: '1-3 hours'
+        });
+      } else if (type === 'design') {
+        opps.push({
+          emoji: '🎨', title: 'UI/UX Enhancement',
+          description: 'Refactor components, add responsive viewport overrides, and configure complex grid structures (CSS/Tailwind v4).',
+          difficulty: 'medium', time: 'Creative scope'
+        });
+        opps.push({
+          emoji: '✨', title: 'Aesthetic Polish',
+          description: 'Make components look modern and premium: configure glowing radial hover effects, active wiggles, and glassmorphic refractions.',
+          difficulty: 'easy', time: '1-3 hours each'
+        });
+        opps.push({
+          emoji: '📱', title: 'Fluid Interactivity',
+          description: 'Implement layout transitions and micro-interactions (e.g. Framer Motion, GSAP, CSS clips) to deliver smooth visuals.',
+          difficulty: 'medium', time: 'Interactive depth'
+        });
+      } else {
+        // Fallback for 'all' or unknown types
+        opps.push({
+          emoji: '🔍', title: 'Open Issues',
+          description: `${(repo.issues || []).length} actionable issues waiting for contributors.`,
+          difficulty: 'varies', time: 'Varies'
+        });
+        opps.push({
+          emoji: '📊', title: 'Project Health',
+          description: `Health score: ${repo.healthScore}/100. ${repo.healthScore >= 70 ? 'Active project with good governance.' : 'Room for improvement — your contribution matters.'}`,
+          difficulty: 'medium', time: 'Assessment'
+        });
+        opps.push({
+          emoji: '🏗️', title: 'Contribute',
+          description: repo.forkOpportunity || 'Multiple contribution paths available.',
+          difficulty: 'medium', time: 'Get started'
+        });
+      }
+
+      return opps;
+    }
+
+    function getQuickActions(repo) {
+      const actions = [];
+      const ghUrl = `https://github.com/${repo.owner}/${repo.name}`;
+
+      actions.push({ icon: 'ph-git-fork', label: 'Fork Repository', url: ghUrl + '/fork', primary: true });
+
+      const firstIssue = (repo.issues || []).find(i => i.labels.some(l => l.includes('good-first') || l.includes('first-timer') || l.includes('bounty')));
+      if (firstIssue) {
+        actions.push({ icon: 'ph-flag', label: `Start with #${firstIssue.num}`, url: ghUrl + `/issues/${firstIssue.num}`, primary: false });
+      }
+
+      actions.push({ icon: 'ph-book-open', label: 'Read CONTRIBUTING', url: ghUrl + '/blob/main/CONTRIBUTING.md', primary: false });
+      actions.push({ icon: 'ph-git-pull-request', label: 'Open Issues', url: ghUrl + '/issues', primary: false });
+
+      return actions;
+    }
+
+    function getBusColor(factor) {
+      if (factor <= 1) return 'text-red-500';
+      if (factor <= 3) return 'text-amber-500';
+      return 'text-green-500';
+    }
+
+    function getBusLabel(factor) {
+      if (factor <= 1) return 'Critical risk';
+      if (factor <= 3) return 'Moderate risk';
+      return 'Healthy';
+    }
+
+    // ==========================================
+    // TRENDING MODAL (for trending repos)
+    // ==========================================
+
+    function openModal(repoId) {
+      const repo = trendingRepos.find(r => r.id === repoId);
+      if (!repo) return;
+
+      document.getElementById('modal-avatar').src = repo.avatar;
+      document.getElementById('modal-avatar').alt = `${repo.owner}/${repo.name}`;
+      document.getElementById('modal-title').textContent = `${repo.owner}/${repo.name}`;
+      document.getElementById('modal-subtitle').textContent = repo.description;
+
+      // Hide opportunity-specific sections for trending repos
+      document.getElementById('modal-health').classList.add('hidden');
+      document.getElementById('modal-sparkline').classList.add('hidden');
+      document.getElementById('modal-signals').classList.add('hidden');
+      document.getElementById('modal-bus').classList.add('hidden');
+      document.getElementById('modal-fork').classList.add('hidden');
+
+      const overlay = document.getElementById('modal-overlay');
+      overlay.classList.remove('hidden');
+      overlay.classList.add('flex');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+      const overlay = document.getElementById('modal-overlay');
+      overlay.classList.add('hidden');
+      overlay.classList.remove('flex');
+      document.body.style.overflow = '';
+    }
+
+    function closeModalOutside(event) {
+      if (event.target === event.currentTarget) closeModal();
+    }
+
+    // ==========================================
+    // UTILITY FUNCTIONS
+    // ==========================================
+
+    function showLoading(id) {
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+    function hideAll(...ids) {
+      ids.forEach(id => document.getElementById(id).classList.add('hidden'));
+    }
+
+    function getHealthLabel(score) {
+      if (score >= 80) return 'Excellent health';
+      if (score >= 60) return 'Good health';
+      if (score >= 40) return 'Needs attention';
+      return 'At risk';
+    }
+
+    function getSignalColor(type) {
+      const colors = {
+        positive: 'text-green-500',
+        warning: 'text-amber-500',
+        negative: 'text-red-500',
+        neutral: 'text-zinc-600 dark:text-zinc-400'
+      };
+      return colors[type] || 'text-zinc-600 dark:text-zinc-400';
+    }
+
+    // ==========================================
+    // KEYBOARD NAVIGATION
+    // ==========================================
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (!document.getElementById('page-opp-detail').classList.contains('hidden')) {
+          goBackFromDetail();
+        } else {
+          closeModal();
+        }
+      }
+    });
+
+    // ==========================================
+    // DATA GENERATION & CHART INTELLIGENCE (GitScout Analytics Engine)
+    // ==========================================
+
+    function getOrCreateTrendData(repo) {
+      if (repo.trendData) return repo.trendData;
+
+      // Base randomizer keyed by repo ID to make data deterministic for the same repo
+      const seed = repo.id;
+      const pseudoRandom = (offset) => {
+        const x = Math.sin(seed + offset) * 10000;
+        return x - Math.floor(x);
+      };
+
+      const months = ['Dec 2025', 'Jan 2026', 'Feb 2026', 'Mar 2026', 'Apr 2026', 'May 2026'];
+      const commitMonths = ['Jun 25', 'Jul 25', 'Aug 25', 'Sep 25', 'Oct 25', 'Nov 25', 'Dec 25', 'Jan 26', 'Feb 26', 'Mar 26', 'Apr 26', 'May 26'];
+      
+      let starHistory = [];
+      let commitHistory = [];
+      let openIssues = repo.issues ? repo.issues.length * 12 : 24;
+      let closedIssues = Math.floor(openIssues * (3.5 + pseudoRandom(1) * 2));
+      
+      // Calculate growth and vitality patterns based on opportunity type
+      if (repo.oppType === 'rising') {
+        // High exponential star growth
+        let currentStars = repo.stars;
+        starHistory = [
+          Math.floor(currentStars * 0.4),
+          Math.floor(currentStars * 0.5),
+          Math.floor(currentStars * 0.65),
+          Math.floor(currentStars * 0.78),
+          Math.floor(currentStars * 0.9),
+          currentStars
+        ];
+        
+        // Active and expanding commits
+        commitHistory = Array.from({ length: 12 }, (_, i) => {
+          return Math.floor(25 + pseudoRandom(i) * 35 + (i * 2));
+        });
+        
+        // High issue resolution rate
+        closedIssues = Math.floor(openIssues * (5 + pseudoRandom(2) * 3));
+      } else if (repo.oppType === 'abandoned') {
+        // Flat or slowing star growth
+        let currentStars = repo.stars;
+        starHistory = [
+          Math.floor(currentStars * 0.92),
+          Math.floor(currentStars * 0.94),
+          Math.floor(currentStars * 0.96),
+          Math.floor(currentStars * 0.98),
+          Math.floor(currentStars * 0.99),
+          currentStars
+        ];
+        
+        // Dropping commits down to zero over 12 months (decaying)
+        commitHistory = Array.from({ length: 12 }, (_, i) => {
+          const decayFactor = Math.max(0, 1 - (i / 10)); // drop to 0 by month 10
+          return Math.floor((15 + pseudoRandom(i) * 25) * decayFactor);
+        });
+        
+        // Very low issue resolution rate (friction is high)
+        closedIssues = Math.floor(openIssues * (0.8 + pseudoRandom(2) * 0.4));
+      } else if (repo.oppType === 'bounty') {
+        // Steady linear growth
+        let currentStars = repo.stars;
+        starHistory = [
+          Math.floor(currentStars * 0.8),
+          Math.floor(currentStars * 0.84),
+          Math.floor(currentStars * 0.88),
+          Math.floor(currentStars * 0.92),
+          Math.floor(currentStars * 0.96),
+          currentStars
+        ];
+        
+        // Stable commits
+        commitHistory = Array.from({ length: 12 }, (_, i) => {
+          return Math.floor(10 + pseudoRandom(i) * 25);
+        });
+        
+        // Medium resolution rate
+        closedIssues = Math.floor(openIssues * (2 + pseudoRandom(2) * 1.5));
+      } else if (repo.oppType === 'design') {
+        // High star growth recently (viral design trend)
+        let currentStars = repo.stars;
+        starHistory = [
+          Math.floor(currentStars * 0.6),
+          Math.floor(currentStars * 0.68),
+          Math.floor(currentStars * 0.76),
+          Math.floor(currentStars * 0.84),
+          Math.floor(currentStars * 0.92),
+          currentStars
+        ];
+        
+        // Active commits
+        commitHistory = Array.from({ length: 12 }, (_, i) => {
+          return Math.floor(15 + pseudoRandom(i) * 30);
+        });
+        
+        // High resolution
+        closedIssues = Math.floor(openIssues * (3 + pseudoRandom(2) * 2));
+      } else {
+        // default (firstpr or standard)
+        let currentStars = repo.stars;
+        starHistory = [
+          Math.floor(currentStars * 0.85),
+          Math.floor(currentStars * 0.88),
+          Math.floor(currentStars * 0.91),
+          Math.floor(currentStars * 0.94),
+          Math.floor(currentStars * 0.97),
+          currentStars
+        ];
+        
+        commitHistory = Array.from({ length: 12 }, (_, i) => {
+          return Math.floor(8 + pseudoRandom(i) * 18);
+        });
+        
+        closedIssues = Math.floor(openIssues * (4 + pseudoRandom(2) * 2));
+      }
+
+      repo.trendData = {
+        months,
+        starHistory,
+        commitMonths,
+        commitHistory,
+        issuesRatio: {
+          open: openIssues,
+          closed: closedIssues,
+          total: openIssues + closedIssues,
+          rate: Math.round((closedIssues / (openIssues + closedIssues)) * 100)
+        }
+      };
+
+      return repo.trendData;
+    }
+
+    function getApexChartThemeOptions() {
+      const isDark = document.documentElement.classList.contains('dark');
+      return {
+        textColor: isDark ? '#8e8ea0' : '#4a4a5a',
+        gridBorderColor: isDark ? 'rgba(26, 26, 46, 0.6)' : 'rgba(208, 208, 216, 0.4)',
+        tooltipTheme: isDark ? 'dark' : 'light',
+        tooltipBg: isDark ? '#0c0c14' : '#ffffff',
+        tooltipBorder: isDark ? '#1a1a2e' : '#d0d0d8'
+      };
+    }
+
+    function renderRepositoryCharts(repo) {
+      const trend = getOrCreateTrendData(repo);
+      
+      // Ensure we set the global active repo
+      currentActiveRepo = repo;
+
+      // Update the badge/labels for status if applicable
+      const starGrowthRateEl = document.getElementById('star-growth-rate');
+      if (starGrowthRateEl) {
+        if (repo.oppType === 'rising') {
+          starGrowthRateEl.textContent = '+142.8% MoM';
+          starGrowthRateEl.className = 'badge bg-green-500/10 text-green-500 font-mono text-xs';
+        } else if (repo.oppType === 'abandoned') {
+          starGrowthRateEl.textContent = '+0.8% MoM (Stalled)';
+          starGrowthRateEl.className = 'badge bg-red-500/10 text-red-500 font-mono text-xs';
+        } else {
+          starGrowthRateEl.textContent = `+${repo.starDelta > 500 ? '24.5%' : '12.3%'} MoM`;
+          starGrowthRateEl.className = 'badge bg-green-500/10 text-green-500 font-mono text-xs';
+        }
+      }
+
+      const commitVitalityEl = document.getElementById('commit-vitality-status');
+      if (commitVitalityEl) {
+        if (repo.oppType === 'abandoned') {
+          commitVitalityEl.textContent = 'Decaying Goldmine: Inactive Maintainer';
+          commitVitalityEl.className = 'badge bg-amber-500/10 text-amber-500 font-mono text-xs';
+        } else if (repo.oppType === 'rising') {
+          commitVitalityEl.textContent = 'High Vitality: Growing Activity';
+          commitVitalityEl.className = 'badge bg-green-500/10 text-green-500 font-mono text-xs';
+        } else {
+          commitVitalityEl.textContent = 'Stable Maintenance';
+          commitVitalityEl.className = 'badge bg-zinc-500/10 text-zinc-500 dark:text-zinc-400 font-mono text-xs';
+        }
+      }
+
+      // Check if ApexCharts is available
+      if (typeof ApexCharts === 'undefined') {
+        console.warn('ApexCharts is not defined. Rendering high-fidelity SVG and CSS fallbacks.');
+        renderFallbackCharts(repo, trend);
+        return;
+      }
+
+      try {
+        const theme = getApexChartThemeOptions();
+
+        // Destroy existing chart instances to avoid overlap / memory leaks
+        if (chartStarVelocity) { chartStarVelocity.destroy(); chartStarVelocity = null; }
+        if (chartCommitVitality) { chartCommitVitality.destroy(); chartCommitVitality = null; }
+        if (chartIssueFriction) { chartIssueFriction.destroy(); chartIssueFriction = null; }
+
+        // ==========================================
+        // 1. STAR VELOCITY & MOMENTUM CURVE (Area Chart)
+        // ==========================================
+        const starOptions = {
+          series: [{
+            name: 'Total Stars',
+            data: trend.starHistory
+          }],
+          chart: {
+            type: 'line',
+            height: 250,
+            toolbar: { show: false },
+            background: 'transparent',
+            fontFamily: 'Geist Sans, sans-serif',
+            animations: {
+              enabled: true,
+              easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+              speed: 600
+            }
+          },
+          colors: ['#6366f1'],
+          stroke: {
+            curve: 'smooth',
+            width: 3
+          },
+          dataLabels: { enabled: false },
+          xaxis: {
+            categories: trend.months,
+            axisBorder: { show: false },
+            axisTicks: { show: false },
+            labels: {
+              style: {
+                colors: theme.textColor,
+                fontSize: '10px',
+                fontFamily: 'Geist Mono, monospace'
+              }
+            }
+          },
+          yaxis: {
+            labels: {
+              formatter: (val) => formatNumber(val),
+              style: {
+                colors: theme.textColor,
+                fontSize: '10px',
+                fontFamily: 'Geist Mono, monospace'
+              }
+            }
+          },
+          grid: {
+            borderColor: theme.gridBorderColor,
+            strokeDashArray: 4,
+            xaxis: { lines: { show: false } },
+            yaxis: { lines: { show: true } }
+          },
+          tooltip: {
+            theme: theme.tooltipTheme,
+            style: {
+              fontSize: '11px',
+              fontFamily: 'Geist Mono, monospace'
+            }
+          }
+        };
+
+        chartStarVelocity = new ApexCharts(document.querySelector("#chart-star-velocity"), starOptions);
+        chartStarVelocity.render();
+
+        // ==========================================
+        // 2. 12-MONTH DEVELOPMENT VITALITY (Bar Chart)
+        // ==========================================
+        const commitOptions = {
+          series: [{
+            name: 'Monthly Commits',
+            data: trend.commitHistory
+          }],
+          chart: {
+            type: 'bar',
+            height: 220,
+            toolbar: { show: false },
+            background: 'transparent',
+            fontFamily: 'Geist Sans, sans-serif',
+            animations: {
+              enabled: true,
+              easing: 'easeout',
+              speed: 500
+            }
+          },
+          plotOptions: {
+            bar: {
+              borderRadius: 3,
+              columnWidth: '60%'
+            }
+          },
+          colors: [function({ value, seriesIndex, dataPointIndex, w }) {
+            if (repo.oppType === 'abandoned' && dataPointIndex >= 9) {
+              return '#ef4444'; // Red for decay
+            }
+            return '#6366f1';
+          }],
+          dataLabels: { enabled: false },
+          xaxis: {
+            categories: trend.commitMonths,
+            axisBorder: { show: false },
+            axisTicks: { show: false },
+            labels: {
+              style: {
+                colors: theme.textColor,
+                fontSize: '9px',
+                fontFamily: 'Geist Mono, monospace'
+              }
+            }
+          },
+          yaxis: {
+            labels: {
+              style: {
+                colors: theme.textColor,
+                fontSize: '10px',
+                fontFamily: 'Geist Mono, monospace'
+              }
+            }
+          },
+          grid: {
+            borderColor: theme.gridBorderColor,
+            strokeDashArray: 4,
+            xaxis: { lines: { show: false } },
+            yaxis: { lines: { show: true } }
+          },
+          tooltip: {
+            theme: theme.tooltipTheme,
+            style: {
+              fontSize: '11px',
+              fontFamily: 'Geist Mono, monospace'
+            }
+          }
+        };
+
+        chartCommitVitality = new ApexCharts(document.querySelector("#chart-commit-vitality"), commitOptions);
+        chartCommitVitality.render();
+
+        // ==========================================
+        // 3. ISSUE FRICTION & RESOLUTION RATE (Donut Chart)
+        // ==========================================
+        const issueOptions = {
+          series: [trend.issuesRatio.closed, trend.issuesRatio.open],
+          labels: ['Resolved Issues', 'Open Friction'],
+          chart: {
+            type: 'donut',
+            height: 250,
+            background: 'transparent',
+            fontFamily: 'Geist Sans, sans-serif'
+          },
+          colors: ['#22c55e', '#ef4444'],
+          stroke: {
+            show: true,
+            width: 2,
+            colors: [document.documentElement.classList.contains('dark') ? '#0c0c14' : '#ffffff']
+          },
+          plotOptions: {
+            pie: {
+              donut: {
+                size: '72%',
+                background: 'transparent',
+                labels: {
+                  show: true,
+                  name: {
+                    show: true,
+                    fontSize: '11px',
+                    fontFamily: 'Geist Sans, sans-serif',
+                    color: theme.textColor,
+                    offsetY: -8
+                  },
+                  value: {
+                    show: true,
+                    fontSize: '18px',
+                    fontFamily: 'Geist Mono, monospace',
+                    fontWeight: '600',
+                    color: document.documentElement.classList.contains('dark') ? '#e0e0e8' : '#1a1a2e',
+                    offsetY: 8,
+                    formatter: (val) => val
+                  },
+                  total: {
+                    show: true,
+                    label: 'Resolution Rate',
+                    color: theme.textColor,
+                    fontSize: '10px',
+                    formatter: (w) => `${trend.issuesRatio.rate}%`
+                  }
+                }
+              }
+            }
+          },
+          dataLabels: { enabled: false },
+          legend: {
+            show: true,
+            position: 'bottom',
+            fontFamily: 'Geist Sans, sans-serif',
+            labels: { colors: theme.textColor },
+            fontSize: '11px',
+            markers: { width: 8, height: 8, radius: 4 }
+          },
+          tooltip: {
+            theme: theme.tooltipTheme,
+            y: { formatter: (val) => `${val} issues` }
+          }
+        };
+
+        chartIssueFriction = new ApexCharts(document.querySelector("#chart-issue-friction"), issueOptions);
+        chartIssueFriction.render();
+      } catch (err) {
+        console.error('Error rendering ApexCharts:', err);
+        renderFallbackCharts(repo, trend);
+      }
+    }
+
+    function renderFallbackCharts(repo, trend) {
+      const isDark = document.documentElement.classList.contains('dark');
+      const strokeColor = '#6366f1';
+      const fillColor = isDark ? 'rgba(99, 102, 241, 0.15)' : 'rgba(99, 102, 241, 0.08)';
+      const labelColor = isDark ? '#a0a0b0' : '#4a4a5a';
+      const gridColor = isDark ? 'rgba(26, 26, 46, 0.4)' : 'rgba(208, 208, 216, 0.3)';
+
+      // ==========================================
+      // 1. STAR VELOCITY FALLBACK (Inline SVG Area)
+      // ==========================================
+      const starHistory = trend.starHistory;
+      const maxStar = Math.max(...starHistory);
+      const minStar = Math.min(...starHistory);
+      const range = maxStar - minStar || 1;
+      
+      const width = 500;
+      const height = 180;
+      const padding = 20;
+      const chartW = width - padding * 2;
+      const chartH = height - padding * 2;
+      
+      const points = starHistory.map((val, idx) => {
+        const x = padding + (idx / (starHistory.length - 1)) * chartW;
+        const y = padding + chartH - ((val - minStar) / range) * chartH;
+        return { x, y, val, month: trend.months[idx] };
+      });
+      
+      const polylinePoints = points.map(p => `${p.x},${p.y}`).join(' ');
+      
+      const starSvg = `
+        <div class="relative w-full h-full flex flex-col justify-between p-2">
+          <svg viewBox="0 0 ${width} ${height}" class="w-full h-44">
+            <!-- Grid Lines -->
+            <line x1="${padding}" y1="${padding}" x2="${width - padding}" y2="${padding}" stroke="${gridColor}" stroke-dasharray="4" />
+            <line x1="${padding}" y1="${padding + chartH/2}" x2="${width - padding}" y2="${padding + chartH/2}" stroke="${gridColor}" stroke-dasharray="4" />
+            <line x1="${padding}" y1="${padding + chartH}" x2="${width - padding}" y2="${padding + chartH}" stroke="${gridColor}" stroke-dasharray="4" />
+            
+            <!-- Line path -->
+            <polyline points="${polylinePoints}" fill="none" stroke="${strokeColor}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+            
+            <!-- Interactive Dots -->
+            ${points.map(p => `
+              <circle cx="${p.x}" cy="${p.y}" r="4" fill="${strokeColor}" stroke="${isDark ? '#0c0c14' : '#ffffff'}" stroke-width="1.5" title="${p.month}: ${formatNumber(p.val)} stars" />
+            `).join('')}
+          </svg>
+          <!-- X-Axis Labels -->
+          <div class="flex justify-between px-4 text-[9px] font-mono" style="color: ${labelColor}">
+            ${points.map(p => `<span>${p.month}</span>`).join('')}
+          </div>
+        </div>
+      `;
+      document.getElementById('chart-star-velocity').innerHTML = starSvg;
+
+      // ==========================================
+      // 2. COMMIT VITALITY FALLBACK (CSS Column Bars)
+      // ==========================================
+      const commitHistory = trend.commitHistory;
+      const maxCommit = Math.max(...commitHistory) || 1;
+      
+      const commitHtml = `
+        <div class="w-full h-40 flex items-end gap-1.5 px-2 mt-4">
+          ${commitHistory.map((val, idx) => {
+            const percentHeight = Math.max(5, (val / maxCommit) * 100);
+            const isDecay = repo.oppType === 'abandoned' && idx >= 9;
+            const bgColor = isDecay ? 'bg-red-500/70 hover:bg-red-500' : 'bg-accent/80 hover:bg-accent';
+            return `
+              <div class="flex-1 flex flex-col items-center gap-1 group h-full justify-end">
+                <span class="text-[8px] font-mono scale-90 opacity-0 group-hover:opacity-100 transition-opacity duration-150" style="color: ${labelColor}">${val}</span>
+                <div class="${bgColor} w-full rounded-t-sm transition-all duration-200" style="height: ${percentHeight}px" title="${trend.commitMonths[idx]}: ${val} commits"></div>
+                <span class="text-[8px] font-mono mt-1 scale-90 whitespace-nowrap" style="color: ${labelColor}">${trend.commitMonths[idx]}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+      document.getElementById('chart-commit-vitality').innerHTML = commitHtml;
+
+      // ==========================================
+      // 3. ISSUE FRICTION FALLBACK (CSS Circle Radial/Grid)
+      // ==========================================
+      const open = trend.issuesRatio.open;
+      const closed = trend.issuesRatio.closed;
+      const total = open + closed;
+      const rate = trend.issuesRatio.rate;
+      
+      const frictionHtml = `
+        <div class="w-full h-full flex flex-col items-center justify-center p-2">
+          <div class="relative w-28 h-28 flex items-center justify-center rounded-full border-8" style="border-color: ${isDark ? 'rgba(34, 197, 94, 0.15)' : 'rgba(34, 197, 94, 0.1)'}">
+            <div class="absolute inset-0 rounded-full border-8 border-transparent border-t-red-500 border-r-red-500" style="transform: rotate(${-45 + (open/total)*360}deg); opacity: 0.85;"></div>
+            <div class="text-center">
+              <span class="text-[8px] block uppercase tracking-wider font-semibold" style="color: ${labelColor}">Resolution</span>
+              <span class="text-lg font-semibold font-mono text-gray-900 dark:text-dark-text">${rate}%</span>
+            </div>
+          </div>
+          
+          <div class="flex justify-between w-full mt-4 text-[9px] px-2 font-mono" style="color: ${labelColor}">
+            <div class="flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-green-500 block"></span>
+              <span>Resolved: ${closed}</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-red-500 block"></span>
+              <span>Friction: ${open}</span>
+            </div>
+          </div>
+        </div>
+      `;
+      document.getElementById('chart-issue-friction').innerHTML = frictionHtml;
+    }
+
+    // ==========================================
+    // INITIALIZATION
+    // ==========================================
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      handleRouting();
+    });
+
+    window.addEventListener('hashchange', handleRouting);
+  </script>
+</body>
+</html>
