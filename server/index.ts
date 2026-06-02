@@ -15,7 +15,6 @@ app.use(cors());
 app.use(express.json());
 
 // Initialize Turso database client (works with remote and local files)
-const isVercel = !!process.env.VERCEL;
 const dbUrl = process.env.TURSO_DATABASE_URL || `file:${path.join(__dirname, '../gitscout.db')}`;
 const dbToken = process.env.TURSO_AUTH_TOKEN;
 
