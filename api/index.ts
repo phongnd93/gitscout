@@ -123,9 +123,8 @@ async function migrateOppTypeDistribution(): Promise<void> {
     const countResult = await db.execute("SELECT COUNT(*) as count FROM repositories WHERE oppType IS NOT NULL");
     const allOpportunityCount = Number(countResult.rows[0]?.count ?? 0);
     
-    if (allOpportunityCount === 0) return; // Nothing to migrate
+    if (allOpportunityCount === 0) return;
 
-    // Fetch all repos that currently have oppType set
     const reposResult = await db.execute("SELECT id FROM repositories WHERE oppType IS NOT NULL");
     const repos = reposResult.rows as unknown as { id: number }[];
     
@@ -134,21 +133,18 @@ async function migrateOppTypeDistribution(): Promise<void> {
     const oppTypes: OpportunityType[] = ['rising', 'bounty', 'firstpr', 'design'];
     let migratedToTrending = 0;
     
-    // Process in batches of 50 to avoid blocking
     for (let i = 0; i < repos.length; i++) {
       const { id } = repos[i];
       const seed = id;
-      const isOpportunity = (seed % 5) < 2; // 2 out of 5 → 40% opportunities (same formula as processRepoItem)
+      const isOpportunity = (seed % 5) < 2;
       
       if (isOpportunity) {
-        // Keep as opportunity, possibly reassign oppType
         const newOppType = oppTypes[Math.floor((Math.sin(seed) + 1) * 2) % oppTypes.length];
         await db.execute({
           sql: 'UPDATE repositories SET oppType = ? WHERE id = ?',
           args: [newOppType, id]
         });
       } else {
-        // Convert to trending (set oppType = NULL)
         await db.execute({
           sql: 'UPDATE repositories SET oppType = NULL WHERE id = ?',
           args: [id]
@@ -164,12 +160,9 @@ async function migrateOppTypeDistribution(): Promise<void> {
   }
 }
 
-// Mock datasets for seeding (complete from prototype for perfect design fidelity)
 const initialTrending: Repository[] = [];
-
 const initialOpportunities: Repository[] = [];
 
-// Helper to seed database if empty
 async function seedDatabase(): Promise<void> {
   try {
     const countResult = await db.execute('SELECT COUNT(*) as count FROM repositories');
@@ -322,12 +315,9 @@ async function processRepoItem(item: GitHubRepoItem): Promise<Repository> {
     };
   }
 
-  // Insert new repo with synthesized opportunity data
   const seed = id;
   const healthScore = Math.floor(65 + (Math.sin(seed) * 25));
-  
-  // Split repos: ~40% get oppType (opportunities), ~60% get NULL (trending only)
-  const isOpportunity = (seed % 5) < 2; // 2 out of 5 -> 40% opportunities
+  const isOpportunity = (seed % 5) < 2;
   const oppTypes: OpportunityType[] = ['rising', 'bounty', 'firstpr', 'design'];
   const oppType: OpportunityType | null = isOpportunity
     ? oppTypes[Math.floor((Math.sin(seed) + 1) * 2) % oppTypes.length]
@@ -449,6 +439,44 @@ async function processRepoItem(item: GitHubRepoItem): Promise<Repository> {
   };
 }
 
+// ========== Scan query definitions (shared between /api/scan and chunked endpoints) ==========
+interface ScanQuery {
+  queryString: string;
+  pagesPerQuery: number;
+}
+
+const PRIMARY_QUERIES: ScanQuery[] = [
+  { queryString: 'q=topic:ai-agent+stars:>50&sort=updated&order=desc', pagesPerQuery: 10 },
+  { queryString: 'q=topic:llm+stars:>50&sort=updated&order=desc', pagesPerQuery: 10 },
+  { queryString: 'q=topic:langchain+stars:>20&sort=updated&order=desc', pagesPerQuery: 10 },
+  { queryString: 'q=topic:developer-tools+stars:>30&sort=updated&order=desc', pagesPerQuery: 10 },
+  { queryString: 'q=topic:machine-learning+language:python+stars:>30&sort=updated&order=desc', pagesPerQuery: 10 },
+  { queryString: 'q=topic:cli+language:rust+stars:>10&sort=updated&order=desc', pagesPerQuery: 10 },
+  { queryString: 'q=topic:web+language:typescript+stars:>50&sort=updated&order=desc', pagesPerQuery: 10 },
+  { queryString: 'q=topic:api+language:go+stars:>20&sort=updated&order=desc', pagesPerQuery: 10 },
+];
+
+const FALLBACK_QUERIES: ScanQuery[] = [
+  { queryString: 'q=stars:>100+language:typescript&sort=stars&order=desc', pagesPerQuery: 5 },
+  { queryString: 'q=stars:>100+language:python&sort=stars&order=desc', pagesPerQuery: 5 },
+  { queryString: 'q=stars:>50+language:rust&sort=stars&order=desc', pagesPerQuery: 5 },
+  { queryString: 'q=stars:>50+language:go&sort=stars&order=desc', pagesPerQuery: 5 },
+];
+
+function getGitHubHeaders(): Record<string, string> {
+  const hasToken = Boolean(process.env.GITHUB_TOKEN);
+  const headers: Record<string, string> = {
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28'
+  };
+  if (hasToken) {
+    headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
+  } else {
+    console.warn('No GITHUB_TOKEN set — unauthenticated requests are heavily rate-limited (10 req/min). Set GITHUB_TOKEN for reliable scanning.');
+  }
+  return headers;
+}
+
 // ========== API ENDPOINTS ==========
 
 // 1. Get Trending Repositories
@@ -543,97 +571,79 @@ app.get('/api/opportunities/:owner/:name', async (req, res) => {
   }
 });
 
-// ========== Helper: fetch repos from GitHub search queries ==========
-async function fetchGitHubRepos(queries: string[], headers: Record<string, string>, pagesPerQuery: number = 5): Promise<GitHubRepoItem[]> {
-  const repoMap = new Map<number, GitHubRepoItem>();
-  
-  for (const q of queries) {
-    let pageCount = 0;
-    for (let page = 1; page <= pagesPerQuery; page++) {
-      try {
-        const resp = await axios.get<{ items: GitHubRepoItem[] }>(
-          `https://api.github.com/search/repositories?${q}&per_page=100&page=${page}`,
-          { headers, timeout: 15000 }
-        );
-        const items = resp.data.items ?? [];
-        if (items.length === 0) break; // No more results for this query
-        
-        for (const item of items) {
-          if (!repoMap.has(item.id)) {
-            repoMap.set(item.id, item);
-          }
-        }
-        pageCount++;
-        
-        // GitHub secondary rate limit: add small delay between pages
-        if (page < pagesPerQuery && items.length === 100) {
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.warn(`Query page ${page} failed: ${msg}`);
-        break; // Stop paginating this query on error (likely rate limit)
-      }
-    }
-    console.log(`  Fetched ${pageCount} pages for query: ${q.substring(0, 60)}...`);
-  }
-  
-  return Array.from(repoMap.values());
-}
+// 4. Get scan queries metadata (for chunked scanning)
+app.get('/api/scan/queries', (_req, res) => {
+  res.json({
+    primary: PRIMARY_QUERIES.map(q => ({
+      queryString: q.queryString,
+      pagesPerQuery: q.pagesPerQuery,
+    })),
+    fallback: FALLBACK_QUERIES.map(q => ({
+      queryString: q.queryString,
+      pagesPerQuery: q.pagesPerQuery,
+    })),
+    totalPrimaryChunks: PRIMARY_QUERIES.reduce((sum, q) => sum + q.pagesPerQuery, 0),
+    totalFallbackChunks: FALLBACK_QUERIES.reduce((sum, q) => sum + q.pagesPerQuery, 0),
+    totalChunks: [...PRIMARY_QUERIES, ...FALLBACK_QUERIES].reduce((sum, q) => sum + q.pagesPerQuery, 0),
+  });
+});
 
-// 4. Trigger Scan / Sync with GitHub REST API
-app.post('/api/scan', async (_req, res) => {
+// 5. Chunked scan: process ONE page of ONE query (fast, safe for Vercel 10s timeout)
+app.post('/api/scan/chunk', async (req, res) => {
   try {
-    console.log('Initiating active GitScout GitHub API scout...');
+    const { queryIndex, page, isFallback } = req.body;
 
-    const hasToken = Boolean(process.env.GITHUB_TOKEN);
-    const headers: Record<string, string> = {
-      'Accept': 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28'
-    };
-    if (hasToken) {
-      headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
-    } else {
-      console.warn('No GITHUB_TOKEN set — unauthenticated requests are heavily rate-limited (10 req/min). Set GITHUB_TOKEN for reliable scanning.');
+    if (typeof queryIndex !== 'number' || typeof page !== 'number') {
+      res.status(400).json({ error: 'queryIndex and page are required numbers' });
+      return;
     }
 
-    // Primary search queries across diverse topics
-    const primaryQueries = [
-      'q=topic:ai-agent+stars:>50&sort=updated&order=desc',
-      'q=topic:llm+stars:>50&sort=updated&order=desc',
-      'q=topic:langchain+stars:>20&sort=updated&order=desc',
-      'q=topic:developer-tools+stars:>30&sort=updated&order=desc',
-      'q=topic:machine-learning+language:python+stars:>30&sort=updated&order=desc',
-      'q=topic:cli+language:rust+stars:>10&sort=updated&order=desc',
-      'q=topic:web+language:typescript+stars:>50&sort=updated&order=desc',
-      'q=topic:api+language:go+stars:>20&sort=updated&order=desc'
-    ];
+    const queries = isFallback ? FALLBACK_QUERIES : PRIMARY_QUERIES;
+    const queryDef = queries[queryIndex];
 
-    let items = await fetchGitHubRepos(primaryQueries, headers, 10);
-    console.log(`Primary queries returned ${items.length} unique repos`);
-
-    // If too few results, try fallback with broader language-only queries
-    if (items.length < 50) {
-      console.log('Low result count, trying fallback broad language search...');
-      const fallbackQueries = [
-        'q=stars:>100+language:typescript&sort=stars&order=desc',
-        'q=stars:>100+language:python&sort=stars&order=desc',
-        'q=stars:>50+language:rust&sort=stars&order=desc',
-        'q=stars:>50+language:go&sort=stars&order=desc'
-      ];
-
-      const fallbackItems = await fetchGitHubRepos(fallbackQueries, headers);
-      // Merge with existing, deduplicating
-      const merged = new Map<number, GitHubRepoItem>();
-      for (const item of items) merged.set(item.id, item);
-      for (const item of fallbackItems) {
-        if (!merged.has(item.id)) merged.set(item.id, item);
-      }
-      items = Array.from(merged.values());
-      console.log(`After fallback: ${items.length} total unique repos`);
+    if (!queryDef) {
+      res.status(400).json({ error: `Invalid queryIndex ${queryIndex} (max ${queries.length - 1})` });
+      return;
     }
 
-    // Process all items through the shared helper
+    if (page < 1 || page > queryDef.pagesPerQuery) {
+      res.status(400).json({ error: `Page ${page} out of range (1-${queryDef.pagesPerQuery})` });
+      return;
+    }
+
+    const headers = getGitHubHeaders();
+    const q = queryDef.queryString;
+
+    console.log(`Chunk scan: ${isFallback ? 'fallback' : 'primary'} query ${queryIndex + 1}/${queries.length}, page ${page}/${queryDef.pagesPerQuery}`);
+
+    let items: GitHubRepoItem[] = [];
+    let hasMorePages = true;
+
+    try {
+      const resp = await axios.get<{ items: GitHubRepoItem[] }>(
+        `https://api.github.com/search/repositories?${q}&per_page=100&page=${page}`,
+        { headers, timeout: 15000 }
+      );
+      items = resp.data.items ?? [];
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`Chunk query ${queryIndex} page ${page} failed: ${msg}`);
+      res.json({
+        repos: [],
+        queryIndex,
+        page,
+        isFallback: Boolean(isFallback),
+        hasMorePages: false,
+        error: msg,
+      });
+      return;
+    }
+
+    if (items.length < 100) {
+      hasMorePages = false;
+    }
+
+    // Process each repo item
     const updatedRepos: Repository[] = [];
     for (const item of items) {
       const repo = await processRepoItem(item);
@@ -641,14 +651,18 @@ app.post('/api/scan', async (_req, res) => {
     }
 
     res.json({
-      message: `Active scan completed! Found ${items.length} repositories.`,
-      scannedCount: items.length,
-      repositories: updatedRepos
+      repos: updatedRepos,
+      queryIndex,
+      page,
+      isFallback: Boolean(isFallback),
+      hasMorePages,
+      totalQueries: queries.length,
+      queryDescription: q.substring(0, 60),
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('Scan Error:', message);
-    res.status(500).json({ error: 'GitHub API limit or Timeout. Please try again shortly or review logs.' });
+    console.error('Chunk scan error:', message);
+    res.status(500).json({ error: message });
   }
 });
 

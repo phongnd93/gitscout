@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useFilterStore } from '../../stores/filters';
 import axios from 'axios';
 
@@ -6,27 +6,148 @@ interface NavbarProps {
   onScanComplete: () => void;
 }
 
+interface ScanQueriesMeta {
+  primary: { queryString: string; pagesPerQuery: number }[];
+  fallback: { queryString: string; pagesPerQuery: number }[];
+  totalPrimaryChunks: number;
+  totalFallbackChunks: number;
+  totalChunks: number;
+}
+
 export const Navbar: React.FC<NavbarProps> = ({ onScanComplete }) => {
   const { currentPage, theme, toggleTheme } = useFilterStore();
   const [isScanning, setIsScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const clearScanMessage = useCallback(() => {
+    setTimeout(() => setScanMessage(null), 4000);
+  }, []);
 
   const handleScan = async () => {
     if (isScanning) return;
     setIsScanning(true);
-    setScanMessage('Scouting GitHub...');
+    setScanMessage('Preparing scan...');
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    let totalReposFound = 0;
+    let primaryRepoCount = 0;
+
     try {
-      const res = await axios.post('/api/scan');
-      setScanMessage(`Found ${res.data.scannedCount} opportunities!`);
+      // Step 1: Get query metadata
+      const metaRes = await axios.get<ScanQueriesMeta>('/api/scan/queries', {
+        signal: controller.signal,
+      });
+      const { primary, fallback, totalPrimaryChunks } = metaRes.data;
+
+      // Step 2: Scan primary queries chunk by chunk
+      let chunkNum = 0;
+      for (let qi = 0; qi < primary.length; qi++) {
+        const q = primary[qi];
+        for (let page = 1; page <= q.pagesPerQuery; page++) {
+          if (controller.signal.aborted) break;
+          chunkNum++;
+          setScanMessage(
+            `Scanning primary ${qi + 1}/${primary.length}, page ${page}/${q.pagesPerQuery} (chunk ${chunkNum}/${totalPrimaryChunks})`
+          );
+
+          try {
+            const chunkRes = await axios.post('/api/scan/chunk', {
+              queryIndex: qi,
+              page,
+              isFallback: false,
+            }, { signal: controller.signal, timeout: 18000 });
+
+            totalReposFound += chunkRes.data.repos?.length ?? 0;
+            primaryRepoCount += chunkRes.data.repos?.length ?? 0;
+
+            if (!chunkRes.data.hasMorePages) {
+              break;
+            }
+          } catch (err: unknown) {
+            const msg = axios.isAxiosError(err)
+              ? (err.response?.data?.error || err.message)
+              : err instanceof Error ? err.message : String(err);
+            console.warn(`Chunk ${chunkNum} failed: ${msg}`);
+            // Continue to next chunk on error
+          }
+
+          // Small delay between chunks to avoid overwhelming Vercel
+          if (!controller.signal.aborted) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
+        }
+      }
+
+      // Step 3: If too few results from primary, scan fallback queries
+      if (primaryRepoCount < 50 && !controller.signal.aborted) {
+        setScanMessage(`Low results (${primaryRepoCount}), scanning fallback queries...`);
+        const totalFallbackChunks = metaRes.data.totalFallbackChunks;
+        let fallbackChunkNum = 0;
+
+        for (let qi = 0; qi < fallback.length; qi++) {
+          const q = fallback[qi];
+          for (let page = 1; page <= q.pagesPerQuery; page++) {
+            if (controller.signal.aborted) break;
+            fallbackChunkNum++;
+            setScanMessage(
+              `Scanning fallback ${qi + 1}/${fallback.length}, page ${page}/${q.pagesPerQuery} (chunk ${fallbackChunkNum}/${totalFallbackChunks})`
+            );
+
+            try {
+              const chunkRes = await axios.post('/api/scan/chunk', {
+                queryIndex: qi,
+                page,
+                isFallback: true,
+              }, { signal: controller.signal, timeout: 18000 });
+
+              totalReposFound += chunkRes.data.repos?.length ?? 0;
+
+              if (!chunkRes.data.hasMorePages) {
+                break;
+              }
+            } catch (err: unknown) {
+              console.warn(`Fallback chunk ${fallbackChunkNum} failed`);
+            }
+
+            if (!controller.signal.aborted) {
+              await new Promise(resolve => setTimeout(resolve, 300));
+            }
+          }
+        }
+      }
+
+      if (controller.signal.aborted) {
+        setScanMessage('Scan cancelled.');
+        clearScanMessage();
+        return;
+      }
+
+      setScanMessage(`Scan complete! Found ${totalReposFound} repos.`);
       onScanComplete();
-      setTimeout(() => setScanMessage(null), 3000);
+      clearScanMessage();
     } catch (err: unknown) {
-      const message = axios.isAxiosError(err) ? err.message : err instanceof Error ? err.message : String(err);
-      console.warn('Scan failed:', message);
-      setScanMessage('Failed to connect to scanner.');
-      setTimeout(() => setScanMessage(null), 3000);
+      if (axios.isCancel(err) || (err instanceof Error && err.name === 'CanceledError')) {
+        setScanMessage('Scan cancelled.');
+      } else {
+        const message = axios.isAxiosError(err)
+          ? (err.response?.data?.error || err.message)
+          : err instanceof Error ? err.message : String(err);
+        console.warn('Scan failed:', message);
+        setScanMessage('Scan failed. Try again shortly.');
+      }
+      clearScanMessage();
     } finally {
       setIsScanning(false);
+      abortRef.current = null;
+    }
+  };
+
+  const handleCancelScan = () => {
+    if (abortRef.current) {
+      abortRef.current.abort();
     }
   };
 
@@ -99,16 +220,15 @@ export const Navbar: React.FC<NavbarProps> = ({ onScanComplete }) => {
               )}
               
               <button
-                onClick={handleScan}
-                disabled={isScanning}
+                onClick={isScanning ? handleCancelScan : handleScan}
                 className={`px-3 py-1 text-xs font-mono rounded border flex items-center gap-1.5 transition-all duration-200 cursor-pointer ${
                   isScanning 
-                    ? 'border-accent/45 bg-accent/5 text-accent animate-pulse'
+                    ? 'border-red-400/60 bg-red-400/5 text-red-400 animate-pulse'
                     : 'border-accent/30 hover:border-accent hover:bg-accent/5 text-accent'
                 }`}
               >
-                <i className={`ph ${isScanning ? 'ph-radar animate-spin' : 'ph-navigation-arrow'}`}></i>
-                {isScanning ? 'Scouting...' : 'Scan GitHub'}
+                <i className={`ph ${isScanning ? 'ph-x-circle' : 'ph-navigation-arrow'}`}></i>
+                {isScanning ? 'Cancel' : 'Scan GitHub'}
               </button>
             </div>
 
