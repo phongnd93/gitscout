@@ -88,6 +88,7 @@ export interface Repository {
   issues?: Issue[];
   contributionGuide?: ContributionStep[];
   trendData?: TrendData;
+  created_at?: string;
 }
 
 /** Raw row shape from SQLite/turso before JSON.parse — all values are primitive. */

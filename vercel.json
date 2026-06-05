@@ -9,5 +9,11 @@
       "source": "/(.*)",
       "destination": "/$1"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/scan/full",
+      "schedule": "0 */4 * * *"
+    }
   ]
 }

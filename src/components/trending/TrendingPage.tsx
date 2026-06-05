@@ -34,6 +34,7 @@ export const TrendingPage: React.FC<TrendingPageProps> = ({ scanToken }) => {
         if (currentCategory !== 'all') params.category = currentCategory;
         if (selectedLanguage !== 'all') params.language = selectedLanguage;
         if (searchQuery) params.search = searchQuery;
+        if (currentTimeRange && currentTimeRange !== 'all') params.timeRange = currentTimeRange;
 
         const res = await axios.get('/api/trending', { params });
         setRepos(res.data as Repository[]);
@@ -47,7 +48,7 @@ export const TrendingPage: React.FC<TrendingPageProps> = ({ scanToken }) => {
     };
 
     fetchTrending();
-  }, [currentCategory, searchQuery, selectedLanguage, scanToken]);
+  }, [currentCategory, searchQuery, selectedLanguage, currentTimeRange, scanToken]);
 
   const categories = [
     { id: 'all', label: 'All' },

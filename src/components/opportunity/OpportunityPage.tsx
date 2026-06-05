@@ -15,7 +15,10 @@ export const OpportunityPage: React.FC<OpportunityPageProps> = ({ scanToken }) =
     setCurrentOppType,
     currentCategory, 
     searchQuery, 
-    selectedLanguage 
+    selectedLanguage,
+    setSelectedLanguage,
+    currentTimeRange,
+    setCurrentTimeRange
   } = useFilterStore();
   
   const [repos, setRepos] = useState<Repository[]>([]);
@@ -32,6 +35,7 @@ export const OpportunityPage: React.FC<OpportunityPageProps> = ({ scanToken }) =
         if (currentCategory !== 'all') params.category = currentCategory;
         if (selectedLanguage !== 'all') params.language = selectedLanguage;
         if (searchQuery) params.search = searchQuery;
+        if (currentTimeRange && currentTimeRange !== 'all') params.timeRange = currentTimeRange;
 
         const res = await axios.get('/api/opportunities', { params });
         setRepos(res.data as Repository[]);
@@ -45,7 +49,7 @@ export const OpportunityPage: React.FC<OpportunityPageProps> = ({ scanToken }) =
     };
 
     fetchOpportunities();
-  }, [currentOppType, currentCategory, searchQuery, selectedLanguage, scanToken]);
+  }, [currentOppType, currentCategory, searchQuery, selectedLanguage, currentTimeRange, scanToken]);
 
   const oppTypes = [
     { 
@@ -119,6 +123,59 @@ export const OpportunityPage: React.FC<OpportunityPageProps> = ({ scanToken }) =
             </p>
           </button>
         ))}
+      </div>
+
+      {/* Controls Row: Language + Time Range + Search */}
+      <div className="flex flex-wrap gap-3 mb-6">
+        {/* Language Dropdown */}
+        <select
+          value={selectedLanguage}
+          onChange={(e) => setSelectedLanguage(e.target.value)}
+          className="px-3 py-1.5 text-sm rounded-small bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text border border-gray-200 dark:border-dark-border cursor-pointer focus:outline-none"
+        >
+          <option value="all">All Languages</option>
+          <option value="python">Python</option>
+          <option value="javascript">JavaScript</option>
+          <option value="typescript">TypeScript</option>
+          <option value="rust">Rust</option>
+          <option value="go">Go</option>
+          <option value="java">Java</option>
+          <option value="cpp">C++</option>
+        </select>
+
+        {/* Time Range Button Group */}
+        <div className="flex items-center gap-1 bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-small p-0.5">
+          <button
+            onClick={() => setCurrentTimeRange('today')}
+            className={`time-btn px-3 py-1 text-xs font-medium rounded-pill cursor-pointer transition-all ${
+              currentTimeRange === 'today'
+                ? 'bg-accent text-white'
+                : 'text-zinc-500 dark:text-zinc-400'
+            }`}
+          >
+            Today
+          </button>
+          <button
+            onClick={() => setCurrentTimeRange('week')}
+            className={`time-btn px-3 py-1 text-xs font-medium rounded-pill cursor-pointer transition-all ${
+              currentTimeRange === 'week'
+                ? 'bg-accent text-white'
+                : 'text-zinc-500 dark:text-zinc-400'
+            }`}
+          >
+            This Week
+          </button>
+          <button
+            onClick={() => setCurrentTimeRange('month')}
+            className={`time-btn px-3 py-1 text-xs font-medium rounded-pill cursor-pointer transition-all ${
+              currentTimeRange === 'month'
+                ? 'bg-accent text-white'
+                : 'text-zinc-500 dark:text-zinc-400'
+            }`}
+          >
+            This Month
+          </button>
+        </div>
       </div>
 
       {/* Category Trend Line Chart */}

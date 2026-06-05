@@ -63,6 +63,7 @@ function parseRepoRow(row: DbRowRaw): Repository {
     issues: safelyParseJson<Issue[]>(row.issues, []),
     contributionGuide: safelyParseJson<ContributionStep[]>(row.contributionGuide, []),
     trendData: safelyParseJson<TrendData | null>(row.trendData, null) ?? undefined,
+    created_at: row.created_at ?? undefined,
   };
 }
 
@@ -479,9 +480,30 @@ function getGitHubHeaders(): Record<string, string> {
 
 // ========== API ENDPOINTS ==========
 
+// Helper: compute time-range filter clause
+function getTimeRangeFilter(timeRange: string | undefined): { clause: string; params: string[] } {
+  if (!timeRange || timeRange === 'all') return { clause: '', params: [] };
+  const now = new Date();
+  let since: Date;
+  switch (timeRange) {
+    case 'today':
+      since = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      break;
+    case 'week':
+      since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      break;
+    case 'month':
+      since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      break;
+    default:
+      return { clause: '', params: [] };
+  }
+  return { clause: ' AND created_at >= ?', params: [since.toISOString()] };
+}
+
 // 1. Get Trending Repositories
 app.get('/api/trending', async (req, res) => {
-  const { category, search, language } = req.query;
+  const { category, search, language, timeRange } = req.query;
   let query = 'SELECT * FROM repositories WHERE oppType IS NULL';
   const params: string[] = [];
 
@@ -499,7 +521,11 @@ app.get('/api/trending', async (req, res) => {
     params.push(searchParam, searchParam, searchParam);
   }
 
-  query += ' ORDER BY stars DESC';
+  const timeFilter = getTimeRangeFilter(timeRange as string | undefined);
+  query += timeFilter.clause;
+  params.push(...timeFilter.params);
+
+  query += ' ORDER BY created_at DESC, stars DESC';
 
   try {
     const result = await db.execute({ sql: query, args: params });
@@ -514,7 +540,7 @@ app.get('/api/trending', async (req, res) => {
 
 // 2. Get Opportunity Repositories
 app.get('/api/opportunities', async (req, res) => {
-  const { oppType, category, search, language } = req.query;
+  const { oppType, category, search, language, timeRange } = req.query;
   let query = 'SELECT * FROM repositories WHERE oppType IS NOT NULL';
   const params: string[] = [];
 
@@ -536,7 +562,11 @@ app.get('/api/opportunities', async (req, res) => {
     params.push(searchParam, searchParam, searchParam);
   }
 
-  query += ' ORDER BY healthScore DESC, stars DESC';
+  const timeFilter = getTimeRangeFilter(timeRange as string | undefined);
+  query += timeFilter.clause;
+  params.push(...timeFilter.params);
+
+  query += ' ORDER BY created_at DESC, healthScore DESC, stars DESC';
 
   try {
     const result = await db.execute({ sql: query, args: params });
@@ -663,6 +693,95 @@ app.post('/api/scan/chunk', async (req, res) => {
     const message = error instanceof Error ? error.message : String(error);
     console.error('Chunk scan error:', message);
     res.status(500).json({ error: message });
+  }
+});
+
+// Exported full scan function for cron jobs
+export async function performFullScan(): Promise<{ totalProcessed: number; totalErrors: number; errors: string[] }> {
+  console.log('========================================');
+  console.log(' Full scan started (cron)');
+  console.log('========================================');
+
+  const allQueries: { queries: ScanQuery[]; label: string }[] = [
+    { queries: PRIMARY_QUERIES, label: 'primary' },
+    { queries: FALLBACK_QUERIES, label: 'fallback' },
+  ];
+
+  let totalProcessed = 0;
+  let totalErrors = 0;
+  const errors: string[] = [];
+
+  for (const group of allQueries) {
+    for (let qi = 0; qi < group.queries.length; qi++) {
+      const qDef = group.queries[qi];
+      const headers = getGitHubHeaders();
+
+      for (let page = 1; page <= qDef.pagesPerQuery; page++) {
+        // Throttle: 1.5s delay between pages to respect rate limits
+        if (totalProcessed > 0) {
+          await new Promise(r => setTimeout(r, 1500));
+        }
+
+        console.log(`Scan: ${group.label} query ${qi + 1}/${group.queries.length}, page ${page}/${qDef.pagesPerQuery}`);
+
+        try {
+          const resp = await axios.get<{ items: GitHubRepoItem[] }>(
+            `https://api.github.com/search/repositories?${qDef.queryString}&per_page=100&page=${page}`,
+            { headers, timeout: 15000 }
+          );
+          const items = resp.data.items ?? [];
+
+          for (const item of items) {
+            await processRepoItem(item);
+            totalProcessed++;
+          }
+
+          console.log(`  -> Processed ${items.length} repos (total: ${totalProcessed})`);
+
+          if (items.length < 100) {
+            console.log(`  -> No more pages for this query`);
+            break;
+          }
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.warn(`  -> Error: ${msg}`);
+          totalErrors++;
+          errors.push(`${group.label} q${qi} p${page}: ${msg}`);
+        }
+      }
+    }
+  }
+
+  console.log('========================================');
+  console.log(` Full scan complete: ${totalProcessed} repos processed, ${totalErrors} errors`);
+  console.log('========================================');
+
+  return { totalProcessed, totalErrors, errors };
+}
+
+// 6. Full scan endpoint (for cron jobs - runs ALL queries, ALL pages)
+app.post('/api/scan/full', async (_req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.write(JSON.stringify({ status: 'started', timestamp: new Date().toISOString() }) + '\n');
+
+  try {
+    const result = await performFullScan();
+    res.write(JSON.stringify({
+      status: 'complete',
+      ...result,
+      errors: result.errors.slice(0, 20),
+      timestamp: new Date().toISOString(),
+    }) + '\n');
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Full scan error:', message);
+    res.write(JSON.stringify({
+      status: 'error',
+      error: message,
+      timestamp: new Date().toISOString(),
+    }) + '\n');
+  } finally {
+    res.end();
   }
 });
 
